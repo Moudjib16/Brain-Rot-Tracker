@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const SYNC_INTERVAL_SECONDS = 5;
+  const SYNC_INTERVAL_SECONDS = 2;
 
   let unsyncedSeconds = 0;
   let windowFocused = true;
@@ -62,7 +62,7 @@
 
   const SELECTORS_BY_DOMAIN = [
     { match: /(^|\.)youtube\.com$/, selectors: ["ytd-reel-video-renderer"] },
-    { match: /(^|\.)tiktok\.com$/, selectors: ['div[data-e2e="recommend-list-item-container"]', "video"] },
+    { match: /(^|\.)tiktok\.com$/, selectors: ['[data-e2e="recommend-list-item-container"]', "video"] },
     { match: /(^|\.)instagram\.com$/, selectors: ["article", 'div[role="dialog"] video'] }
   ];
 
@@ -88,6 +88,12 @@
   }
 
   function getVideoIdentity(element) {
+    const shortsMatch = window.location.pathname.match(/\/shorts\/([^/?#]+)/);
+
+    if (shortsMatch) {
+      return `short:${shortsMatch[1]}`;
+    }
+
     const video =
       element instanceof HTMLVideoElement ? element : element.querySelector("video");
 
@@ -96,11 +102,11 @@
     }
 
     const link = element.querySelector(
-      'a[href*="/shorts/"], a[href*="/video/"], a[href*="/reel/"], a[href*="/reels/"]'
+      'a[href*="/shorts/"], a[href*="/video/"], a[href*="/photo/"], a[href*="/reel/"], a[href*="/reels/"]'
     );
 
     if (link && link.href) {
-      return link.href;
+      return link.href.split("?")[0].split("#")[0];
     }
 
     return null;
