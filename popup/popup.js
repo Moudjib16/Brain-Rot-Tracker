@@ -480,6 +480,10 @@ exportJsonButton.addEventListener("click", () => exportData("json"));
 // Lifecycle
 // -----------------------------------------------------------------------------
 
+document.getElementById("open-settings").addEventListener("click", () => {
+  chrome.runtime.openOptionsPage();
+});
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes.stats) {
     scheduleRefresh();

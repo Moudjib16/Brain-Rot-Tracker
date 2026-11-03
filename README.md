@@ -55,6 +55,9 @@ Reload the extension after changing its files, then refresh any already-open sup
 ├── background.js       # History storage, badge, alarms, and message handling
 ├── content.js          # Active-time and video-view tracking in supported feeds
 ├── icons/              # 16/32/48/128 px icons
+├── options/
+│   ├── options.html    # Settings page shell
+│   └── options.css     # Settings page styling
 └── popup/
     ├── popup.html      # Extension popup markup
     ├── popup.css       # Popup styling and light/dark themes
@@ -88,6 +91,11 @@ automatically: the old flat `scrolledCount` / `activeTimeSeconds` / `lastResetDa
 values are folded into history under the date they belonged to.
 
 No account, server, or external analytics service is used.
+
+## Settings
+
+Open the settings page with the gear button in the popup, or through the extension's
+options page. The page is being built incrementally; no settings are available yet.
 
 ## Export
 
