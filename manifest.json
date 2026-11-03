@@ -5,6 +5,7 @@
   "description": "Tracks active screen time and unique videos scrolled on video-heavy platforms like YouTube Shorts, TikTok, and Instagram Reels.",
   "permissions": [
     "storage",
+    "alarms",
     "activeTab"
   ],
   "background": {

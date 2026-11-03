@@ -17,6 +17,8 @@ const HISTORY_RETENTION_DAYS = 365;
 const MAX_SECONDS_PER_MESSAGE = 300;
 const MAX_SCROLLS_PER_MESSAGE = 50;
 const SITES = ["youtube", "tiktok", "instagram"];
+const MIDNIGHT_ALARM = "brt-midnight";
+const BADGE_COLOR = "#ff4d4d";
 
 // -----------------------------------------------------------------------------
 // Dates
@@ -44,6 +46,28 @@ function dateStringOffset(offset, from) {
   const base = from instanceof Date ? from : new Date();
   const shifted = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
   return getTodayDateString(shifted);
+}
+
+function formatDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return [hours, minutes, secs].map(pad2).join(":");
+}
+
+function formatCount(value) {
+  const count = Math.max(0, Math.floor(Number(value) || 0));
+
+  if (count < 1000) {
+    return String(count);
+  }
+
+  if (count < 10000) {
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  }
+
+  return `${Math.round(count / 1000)}k`;
 }
 
 // -----------------------------------------------------------------------------
@@ -176,6 +200,53 @@ function applyActivity(stats, activity) {
 }
 
 // -----------------------------------------------------------------------------
+// Toolbar badge
+// -----------------------------------------------------------------------------
+
+const lastBadge = { text: null, title: null };
+
+function actionCall(method, details) {
+  return new Promise((resolve) => {
+    try {
+      method.call(chrome.action, details, () => resolve());
+    } catch (error) {
+      resolve();
+    }
+  });
+}
+
+async function refreshBadge(stats) {
+  if (!chrome.action) {
+    return;
+  }
+
+  const today = getDay(stats, getTodayDateString());
+  const text = today.scrolledCount > 0 ? formatCount(today.scrolledCount) : "";
+  const title =
+    today.scrolledCount === 0 && today.activeTimeSeconds === 0
+      ? "Brain Rot Tracker - no activity today"
+      : `Brain Rot Tracker - ${today.scrolledCount} videos, ${formatDuration(
+          today.activeTimeSeconds
+        )} today`;
+
+  try {
+    if (lastBadge.text !== text) {
+      await actionCall(chrome.action.setBadgeText, { text });
+      await actionCall(chrome.action.setBadgeBackgroundColor, { color: BADGE_COLOR });
+      lastBadge.text = text;
+    }
+
+    if (lastBadge.title !== title) {
+      await actionCall(chrome.action.setTitle, { title });
+      lastBadge.title = title;
+    }
+  } catch (error) {
+    // The badge is cosmetic; never let it break tracking.
+    console.warn("[Brain Rot Tracker] failed to update the badge", error);
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Storage
 // -----------------------------------------------------------------------------
 
@@ -255,6 +326,7 @@ function withStats(mutator) {
     const result = await mutator(stats);
     pruneHistory(stats, getTodayDateString());
     await saveStats(stats);
+    await refreshBadge(stats);
     return result === undefined ? null : result;
   });
 }
@@ -317,7 +389,11 @@ function handleMessage(message) {
     }
 
     case "GET_STATS":
-      return enqueue(() => readStoredStats());
+      return enqueue(async () => {
+        const stats = await readStoredStats();
+        await refreshBadge(stats);
+        return stats;
+      });
 
     case "RESET_STATS":
       return withStats((stats) => {
@@ -352,17 +428,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function runMaintenance() {
   return enqueue(async () => {
     const stats = await readStoredStats();
+    pruneHistory(stats, getTodayDateString());
     await saveStats(stats);
+    await refreshBadge(stats);
     return stats;
   });
 }
 
+function scheduleMidnightAlarm() {
+  const now = new Date();
+  const nextMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    5
+  );
+
+  chrome.alarms.create(MIDNIGHT_ALARM, { when: nextMidnight.getTime() });
+}
+
+function ensureMidnightAlarm() {
+  chrome.alarms.get(MIDNIGHT_ALARM, (alarm) => {
+    if (!alarm) {
+      scheduleMidnightAlarm();
+    }
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
+  ensureMidnightAlarm();
   runMaintenance().catch(() => undefined);
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  ensureMidnightAlarm();
   runMaintenance().catch(() => undefined);
 });
 
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== MIDNIGHT_ALARM) {
+    return;
+  }
+
+  scheduleMidnightAlarm();
+  runMaintenance().catch(() => undefined);
+});
+
+ensureMidnightAlarm();
 runMaintenance().catch(() => undefined);

@@ -267,10 +267,26 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 });
 
-dateLabel.textContent = new Date().toLocaleDateString(undefined, {
-  weekday: "short",
-  month: "short",
-  day: "numeric"
-});
+let displayedDate = getTodayDateString();
 
+function updateDateLabel() {
+  dateLabel.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function checkDateRollover() {
+  const today = getTodayDateString();
+
+  if (today !== displayedDate) {
+    displayedDate = today;
+    updateDateLabel();
+    loadStats();
+  }
+}
+
+updateDateLabel();
 loadStats();
+setInterval(checkDateRollover, 60000);

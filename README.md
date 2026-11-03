@@ -15,7 +15,7 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 
 The popup displays today's video count and active time, a seven-day breakdown by
 platform, CSV/JSON export buttons, and a **Reset today** button that clears only the
-current day.
+current day. The toolbar badge shows today's video count.
 
 ## How it works
 
@@ -100,7 +100,8 @@ saved through the browser's normal download mechanism.
 - Platform page markup can change, especially on TikTok and Instagram. If counting stops, the site selectors in `content.js` may need updating.
 - The Firefox extension ID in `manifest.json` is a placeholder. Replace it before packaging or signing for Firefox Add-ons.
 - A new day starts automatically when the date changes; the previous day remains in
-  history instead of being cleared.
+  history instead of being cleared. A midnight alarm prunes expired history and
+  refreshes the toolbar badge.
 
 ## Development
 
