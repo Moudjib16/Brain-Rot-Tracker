@@ -3,19 +3,18 @@
 
   const SYNC_INTERVAL_SECONDS = 5;
 
-  let activeSeconds = 0;
   let unsyncedSeconds = 0;
+  let windowFocused = true;
 
   function isUserActive() {
-    return document.hidden === false && document.hasFocus() === true;
+    return document.hidden === false && windowFocused === true;
   }
 
   function tick() {
     if (isUserActive()) {
-      activeSeconds += 1;
       unsyncedSeconds += 1;
 
-      if (activeSeconds % SYNC_INTERVAL_SECONDS === 0) {
+      if (unsyncedSeconds >= SYNC_INTERVAL_SECONDS) {
         flushActiveTime();
       }
     }
@@ -49,7 +48,12 @@
     }
   });
 
+  window.addEventListener("focus", () => {
+    windowFocused = true;
+  });
+
   window.addEventListener("blur", () => {
+    windowFocused = false;
     flushActiveTime();
   });
 
@@ -69,18 +73,48 @@
 
   const observedElements = new WeakSet();
   const MIN_VISIBLE_MS = 700;
+  const IDENTITY_CACHE_LIMIT = 300;
   const latestVisibility = new WeakMap();
   const pendingTimers = new WeakMap();
+  const countedIdentities = new Set();
 
-  function sendScrollIncrement(element) {
+  function rememberIdentity(identity) {
+    countedIdentities.add(identity);
+
+    if (countedIdentities.size > IDENTITY_CACHE_LIMIT) {
+      const oldest = countedIdentities.values().next().value;
+      countedIdentities.delete(oldest);
+    }
+  }
+
+  function getVideoIdentity(element) {
+    const video =
+      element instanceof HTMLVideoElement ? element : element.querySelector("video");
+
+    if (video && video.currentSrc) {
+      return video.currentSrc;
+    }
+
+    const link = element.querySelector(
+      'a[href*="/shorts/"], a[href*="/video/"], a[href*="/reel/"], a[href*="/reels/"]'
+    );
+
+    if (link && link.href) {
+      return link.href;
+    }
+
+    return null;
+  }
+
+  function sendScrollIncrement(onFailure) {
     try {
       chrome.runtime.sendMessage({ action: "INCREMENT_SCROLL" }, () => {
         if (chrome.runtime.lastError) {
-          element.removeAttribute("data-extension-tracked");
+          onFailure();
         }
       });
     } catch (error) {
-      element.removeAttribute("data-extension-tracked");
+      onFailure();
     }
   }
 
@@ -91,12 +125,26 @@
       return;
     }
 
+    const identity = getVideoIdentity(element);
+
+    if (identity) {
+      if (countedIdentities.has(identity)) {
+        return;
+      }
+
+      rememberIdentity(identity);
+      console.debug("[Brain Rot Tracker] counted video:", identity);
+      sendScrollIncrement(() => countedIdentities.delete(identity));
+      return;
+    }
+
     if (element.getAttribute("data-extension-tracked") === "true") {
       return;
     }
 
     element.setAttribute("data-extension-tracked", "true");
-    sendScrollIncrement(element);
+    console.debug("[Brain Rot Tracker] counted video element (no identity resolvable)");
+    sendScrollIncrement(() => element.removeAttribute("data-extension-tracked"));
   }
 
   const videoObserver = new IntersectionObserver(
@@ -105,10 +153,6 @@
         const element = entry.target;
         const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
         latestVisibility.set(element, ratio);
-
-        if (element.getAttribute("data-extension-tracked") === "true") {
-          continue;
-        }
 
         if (ratio >= 0.6) {
           if (!pendingTimers.has(element)) {
