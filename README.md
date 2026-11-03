@@ -14,7 +14,8 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
   and Instagram.
 
 The popup displays today's video count and active time, a seven-day breakdown by
-platform, and a **Reset today** button that clears only the current day.
+platform, CSV/JSON export buttons, and a **Reset today** button that clears only the
+current day.
 
 ## How it works
 
@@ -85,6 +86,14 @@ automatically: the old flat `scrolledCount` / `activeTimeSeconds` / `lastResetDa
 values are folded into history under the date they belonged to.
 
 No account, server, or external analytics service is used.
+
+## Export
+
+The popup can export the full history as either format. Files are generated locally and
+saved through the browser's normal download mechanism.
+
+- **CSV** — one row per day with total and per-platform counts and active seconds.
+- **JSON** — the raw history plus the extension name, schema version, and export time.
 
 ## Notes and limitations
 

@@ -4,6 +4,8 @@ const resetButton = document.getElementById("reset-stats");
 const dateLabel = document.getElementById("date-label");
 const breakdownEl = document.getElementById("breakdown");
 const siteListEl = document.getElementById("site-list");
+const exportCsvButton = document.getElementById("export-csv");
+const exportJsonButton = document.getElementById("export-json");
 
 const SITE_LABELS = {
   youtube: "YouTube Shorts",
@@ -13,6 +15,7 @@ const SITE_LABELS = {
 const SITES = ["youtube", "tiktok", "instagram"];
 const BREAKDOWN_DAYS = 7;
 
+let latestStats = null;
 let refreshTimer = null;
 
 function pad2(value) {
@@ -80,6 +83,85 @@ function send(action) {
   });
 }
 
+const CSV_COLUMNS = ["date", "scrolled_count", "active_time_seconds", "active_time_hhmmss"];
+
+for (const site of SITES) {
+  CSV_COLUMNS.push(`${site}_scrolled`, `${site}_active_time_seconds`);
+}
+
+function daysWithActivity(stats) {
+  return Object.entries((stats && stats.history) || {})
+    .filter(([, day]) => day && (day.scrolledCount > 0 || day.activeTimeSeconds > 0))
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+}
+
+function toCsv(stats) {
+  const lines = [CSV_COLUMNS.join(",")];
+
+  for (const [date, day] of daysWithActivity(stats)) {
+    const row = [
+      date,
+      day.scrolledCount,
+      day.activeTimeSeconds,
+      formatActiveTime(day.activeTimeSeconds)
+    ];
+
+    for (const site of SITES) {
+      const siteDay = (day.sites && day.sites[site]) || {
+        scrolledCount: 0,
+        activeTimeSeconds: 0
+      };
+      row.push(siteDay.scrolledCount, siteDay.activeTimeSeconds);
+    }
+
+    lines.push(row.join(","));
+  }
+
+  // Byte-order mark so spreadsheet apps detect UTF-8.
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+function toJson(stats) {
+  return JSON.stringify(
+    {
+      extension: "Brain Rot Tracker",
+      version: (stats && stats.version) || 2,
+      exportedAt: new Date().toISOString(),
+      history: (stats && stats.history) || {}
+    },
+    null,
+    2
+  );
+}
+
+function download(filename, contents, mimeType) {
+  const blob = new Blob([contents], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportData(format) {
+  if (!latestStats) {
+    return;
+  }
+
+  const date = getTodayDateString();
+
+  if (format === "csv") {
+    download(`brain-rot-${date}.csv`, toCsv(latestStats), "text/csv;charset=utf-8");
+  } else {
+    download(`brain-rot-${date}.json`, toJson(latestStats), "application/json");
+  }
+}
+
 function renderBreakdown(stats) {
   const totals = {};
 
@@ -133,6 +215,8 @@ function renderBreakdown(stats) {
 }
 
 function renderStats(stats) {
+  latestStats = stats;
+
   const day = (stats && stats.history && stats.history[getTodayDateString()]) || {
     scrolledCount: 0,
     activeTimeSeconds: 0
@@ -173,6 +257,9 @@ resetButton.addEventListener("click", async () => {
     resetButton.disabled = false;
   }
 });
+
+exportCsvButton.addEventListener("click", () => exportData("csv"));
+exportJsonButton.addEventListener("click", () => exportData("json"));
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes.stats) {
