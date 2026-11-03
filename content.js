@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const SYNC_INTERVAL_SECONDS = 2;
+  const SYNC_INTERVAL_SECONDS = 1;
 
   let unsyncedSeconds = 0;
   let windowFocused = true;
@@ -216,6 +216,41 @@
     childList: true,
     subtree: true
   });
+
+  if (/(^|\.)youtube\.com$/.test(hostname)) {
+    const shortWatch = { identity: null, since: 0 };
+
+    setInterval(() => {
+      if (!window.location.pathname.startsWith("/shorts/")) {
+        shortWatch.identity = null;
+        return;
+      }
+
+      const active = document.querySelector("ytd-reel-video-renderer[is-active]");
+      if (!active) {
+        return;
+      }
+
+      const identity = getVideoIdentity(active);
+      if (!identity || countedIdentities.has(identity)) {
+        return;
+      }
+
+      const now = Date.now();
+
+      if (shortWatch.identity !== identity) {
+        shortWatch.identity = identity;
+        shortWatch.since = now;
+        return;
+      }
+
+      if (now - shortWatch.since >= MIN_VISIBLE_MS) {
+        rememberIdentity(identity);
+        console.debug("[Brain Rot Tracker] counted short via is-active poll:", identity);
+        sendScrollIncrement(() => countedIdentities.delete(identity));
+      }
+    }, 500);
+  }
 
   setInterval(tick, 1000);
 })();
