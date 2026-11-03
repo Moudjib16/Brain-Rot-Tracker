@@ -88,7 +88,8 @@ The extension stores all statistics locally under one `stats` key:
 }
 ```
 
-History is pruned after 365 days. Users upgrading from version 1 are migrated
+History is pruned after 365 days by default, and can be configured to 30, 90, 180, or
+365 days, or to keep everything forever. Users upgrading from version 1 are migrated
 automatically: the old flat `scrolledCount` / `activeTimeSeconds` / `lastResetDate`
 values are folded into history under the date they belonged to.
 
@@ -104,6 +105,9 @@ no reload is needed.
   and Instagram Reels. Turning a platform off stops counting new videos and time on
   that site; your existing history is kept. The background service also rejects any
   stats messages for a disabled platform, so stale tabs cannot write either.
+- **History retention** — keep 30, 90, 180, or 365 days of daily stats, or keep them
+  forever. Choosing a shorter window deletes older days as soon as the setting is
+  saved.
 
 ```json
 {

@@ -527,6 +527,16 @@ function runMaintenance() {
   });
 }
 
+// Re-prune as soon as the settings change so a shorter retention takes effect
+// right away instead of waiting for the next maintenance run.
+if (chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "local" && changes[SETTINGS_KEY]) {
+      runMaintenance().catch(() => undefined);
+    }
+  });
+}
+
 function scheduleMidnightAlarm() {
   const now = new Date();
   const nextMidnight = new Date(
