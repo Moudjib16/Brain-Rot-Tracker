@@ -111,6 +111,8 @@ no reload is needed.
 - **Daily rollover** — choose the hour the tracking day starts (midnight by default,
   or 3/4/5/6 AM or noon). Time before that hour counts toward the previous day.
   Existing history is unchanged.
+- **Toolbar badge** — choose what the toolbar icon shows: today's video count (default),
+  compact active time (`42m`, `2h05`), or nothing at all.
 - **Verbose console logging** — enables or silences the `console.debug` output the
   content script emits for each counted video. Warnings and errors are always shown.
 
@@ -120,7 +122,8 @@ no reload is needed.
     "platforms": { "youtube": true, "tiktok": true, "instagram": true },
     "historyRetentionDays": 365,
     "debugLogging": true,
-    "resetHour": 0
+    "resetHour": 0,
+    "badgeMode": "count"
   }
 }
 ```

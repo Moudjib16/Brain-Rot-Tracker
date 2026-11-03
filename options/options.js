@@ -8,6 +8,7 @@
   const toggles = Array.from(document.querySelectorAll(".switch-input[data-site]"));
   const retentionSelect = document.getElementById("history-retention");
   const resetHourSelect = document.getElementById("reset-hour");
+  const badgeModeSelect = document.getElementById("badge-mode");
   const debugToggle = document.getElementById("debug-logging");
 
   let statusTimer = null;
@@ -79,6 +80,12 @@
     }
   }
 
+  function toBadgeModeValue(value) {
+    return ["count", "time", "none"].includes(value)
+      ? value
+      : BrainRotSettings.DEFAULT_SETTINGS.badgeMode;
+  }
+
   async function refreshControls() {
     const settings = await readSettings();
 
@@ -89,6 +96,7 @@
     ensureOptionPresent(resetHourSelect, String(settings.resetHour));
     retentionSelect.value = String(settings.historyRetentionDays);
     resetHourSelect.value = String(settings.resetHour);
+    badgeModeSelect.value = settings.badgeMode;
     debugToggle.checked = settings.debugLogging !== false;
   }
 
@@ -101,6 +109,7 @@
 
     settings.historyRetentionDays = toRetentionValue(retentionSelect.value);
     settings.resetHour = toHourValue(resetHourSelect.value);
+    settings.badgeMode = toBadgeModeValue(badgeModeSelect.value);
     settings.debugLogging = debugToggle.checked;
 
     const saved = await writeSettings(settings);
@@ -123,6 +132,7 @@
 
   retentionSelect.addEventListener("change", () => save("retention"));
   resetHourSelect.addEventListener("change", () => save());
+  badgeModeSelect.addEventListener("change", () => save());
   debugToggle.addEventListener("change", () => save());
 
   // Keep controls in sync when settings change in another tab or window.
@@ -137,6 +147,7 @@
       ensureOptionPresent(resetHourSelect, String(settings.resetHour));
       retentionSelect.value = String(settings.historyRetentionDays);
       resetHourSelect.value = String(settings.resetHour);
+      badgeModeSelect.value = settings.badgeMode;
       debugToggle.checked = settings.debugLogging !== false;
     }
   });

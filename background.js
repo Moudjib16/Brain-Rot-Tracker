@@ -40,7 +40,8 @@ if (typeof BrainRotSettings === "undefined") {
         historyRetentionDays:
           Number.isFinite(retention) && retention >= 0 ? Math.floor(retention) : 365,
         debugLogging: source.debugLogging !== false,
-        resetHour: Number.isFinite(resetHour) ? Math.min(23, Math.max(0, Math.floor(resetHour))) : 0
+        resetHour: Number.isFinite(resetHour) ? Math.min(23, Math.max(0, Math.floor(resetHour))) : 0,
+        badgeMode: ["count", "time", "none"].includes(source.badgeMode) ? source.badgeMode : "count"
       };
     }
   };
@@ -278,19 +279,59 @@ function actionCall(method, details) {
   });
 }
 
+function formatBadgeDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h${pad2(minutes)}` : `${hours}h`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m`;
+  }
+
+  if (seconds > 0) {
+    return `${seconds}s`;
+  }
+
+  return "";
+}
+
 async function refreshBadge(stats) {
   if (!chrome.action) {
     return;
   }
 
+  const mode = ["count", "time", "none"].includes(currentBadgeMode)
+    ? currentBadgeMode
+    : "count";
   const today = getDay(stats, getTodayDateString(undefined, currentResetHour));
-  const text = today.scrolledCount > 0 ? formatCount(today.scrolledCount) : "";
-  const title =
-    today.scrolledCount === 0 && today.activeTimeSeconds === 0
-      ? "Brain Rot Tracker - no activity today"
-      : `Brain Rot Tracker - ${today.scrolledCount} videos, ${formatDuration(
-          today.activeTimeSeconds
-        )} today`;
+
+  let text;
+  let title;
+
+  if (mode === "none") {
+    text = "";
+    title = "Brain Rot Tracker";
+  } else if (mode === "time") {
+    text = formatBadgeDuration(today.activeTimeSeconds);
+    title =
+      today.scrolledCount === 0 && today.activeTimeSeconds === 0
+        ? "Brain Rot Tracker - no activity today"
+        : `Brain Rot Tracker - ${today.scrolledCount} videos, ${formatDuration(
+            today.activeTimeSeconds
+          )} today`;
+  } else {
+    text = today.scrolledCount > 0 ? formatCount(today.scrolledCount) : "";
+    title =
+      today.scrolledCount === 0 && today.activeTimeSeconds === 0
+        ? "Brain Rot Tracker - no activity today"
+        : `Brain Rot Tracker - ${today.scrolledCount} videos, ${formatDuration(
+            today.activeTimeSeconds
+          )} today`;
+  }
 
   try {
     if (lastBadge.text !== text) {
@@ -349,8 +390,12 @@ async function readStoredStats() {
   const settings = BrainRotSettings.normalizeSettings(data[SETTINGS_KEY]);
   const retention = settings.historyRetentionDays;
   const resetHour = toResetHour(settings.resetHour);
+  const badgeMode = ["count", "time", "none"].includes(settings.badgeMode)
+    ? settings.badgeMode
+    : "count";
   lastRetentionDays = retention;
   currentResetHour = resetHour;
+  currentBadgeMode = badgeMode;
   const nowKey = getTodayDateString(undefined, resetHour);
 
   const hadLegacyValues = LEGACY_KEYS.some(
@@ -386,6 +431,7 @@ let writeQueue = Promise.resolve();
 // the settings that were just loaded. Only mutated inside the serialized queue.
 let lastRetentionDays = HISTORY_RETENTION_DAYS;
 let currentResetHour = 0;
+let currentBadgeMode = "count";
 
 function readSettings() {
   return storageGet({ [SETTINGS_KEY]: null }).then((data) =>

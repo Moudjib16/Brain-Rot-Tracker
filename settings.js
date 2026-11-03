@@ -9,7 +9,8 @@
  *     platforms: { youtube: true, tiktok: true, instagram: true },
  *     historyRetentionDays: 365,   // 0 keeps history forever
  *     debugLogging: true,
- *     resetHour: 0                 // hour of day the tracking day starts
+ *     resetHour: 0,                // hour of day the tracking day starts
+ *     badgeMode: "count"           // "count" | "time" | "none"
  *   }
  */
 (function (root) {
@@ -22,8 +23,15 @@
     platforms: { youtube: true, tiktok: true, instagram: true },
     historyRetentionDays: 365,
     debugLogging: true,
-    resetHour: 0
+    resetHour: 0,
+    badgeMode: "count"
   };
+
+  const BADGE_MODES = ["count", "time", "none"];
+
+  function toBadgeMode(value, fallback) {
+    return typeof value === "string" && BADGE_MODES.includes(value) ? value : fallback;
+  }
 
   function toNonNegativeInt(value, fallback) {
     const number = Number(value);
@@ -69,7 +77,8 @@
         typeof source.debugLogging === "boolean"
           ? source.debugLogging
           : DEFAULT_SETTINGS.debugLogging,
-      resetHour: toHourValue(source.resetHour, DEFAULT_SETTINGS.resetHour)
+      resetHour: toHourValue(source.resetHour, DEFAULT_SETTINGS.resetHour),
+      badgeMode: toBadgeMode(source.badgeMode, DEFAULT_SETTINGS.badgeMode)
     };
   }
 
