@@ -54,10 +54,12 @@ Reload the extension after changing its files, then refresh any already-open sup
 ├── manifest.json       # Extension metadata, permissions, and site matches
 ├── background.js       # History storage, badge, alarms, and message handling
 ├── content.js          # Active-time and video-view tracking in supported feeds
+├── settings.js         # Shared settings schema and defaults (background, content, options)
 ├── icons/              # 16/32/48/128 px icons
 ├── options/
-│   ├── options.html    # Settings page shell
-│   └── options.css     # Settings page styling
+│   ├── options.html    # Settings page
+│   ├── options.css     # Settings page styling and light/dark themes
+│   └── options.js      # Settings load/save and toggle sync
 └── popup/
     ├── popup.html      # Extension popup markup
     ├── popup.css       # Popup styling and light/dark themes
@@ -95,7 +97,23 @@ No account, server, or external analytics service is used.
 ## Settings
 
 Open the settings page with the gear button in the popup, or through the extension's
-options page. The page is being built incrementally; no settings are available yet.
+options page. Settings are stored locally under a `settings` key and apply immediately —
+no reload is needed.
+
+- **Platforms** — switch tracking on or off individually for YouTube Shorts, TikTok,
+  and Instagram Reels. Turning a platform off stops counting new videos and time on
+  that site; your existing history is kept. The background service also rejects any
+  stats messages for a disabled platform, so stale tabs cannot write either.
+
+```json
+{
+  "settings": {
+    "platforms": { "youtube": true, "tiktok": true, "instagram": true },
+    "historyRetentionDays": 365,
+    "debugLogging": true
+  }
+}
+```
 
 ## Export
 

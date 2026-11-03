@@ -8,7 +8,41 @@
  * Writes are serialized through one promise queue so two tabs syncing at the
  * same moment cannot overwrite each other. Data from version 1 (flat counters
  * plus `lastResetDate`) is migrated automatically on first read.
+ *
+ * Settings are shared with the content script and options page through
+ * settings.js, stored under the `settings` key in chrome.storage.local.
  */
+
+if (typeof BrainRotSettings === "undefined" && typeof importScripts === "function") {
+  importScripts("settings.js");
+}
+
+if (typeof BrainRotSettings === "undefined") {
+  // Defensive fallback so the worker never hard-fails if settings.js is missing.
+  globalThis.BrainRotSettings = {
+    SETTINGS_KEY: "settings",
+    normalizeSettings(raw) {
+      const source = raw && typeof raw === "object" ? raw : {};
+      const platforms = { youtube: true, tiktok: true, instagram: true };
+
+      if (source.platforms && typeof source.platforms === "object") {
+        for (const site of Object.keys(platforms)) {
+          if (typeof source.platforms[site] === "boolean") {
+            platforms[site] = source.platforms[site];
+          }
+        }
+      }
+
+      const retention = Number(source.historyRetentionDays);
+      return {
+        platforms,
+        historyRetentionDays:
+          Number.isFinite(retention) && retention >= 0 ? Math.floor(retention) : 365,
+        debugLogging: source.debugLogging !== false
+      };
+    }
+  };
+}
 
 const STORAGE_VERSION = 2;
 const STATS_KEY = "stats";
@@ -19,6 +53,7 @@ const MAX_SCROLLS_PER_MESSAGE = 50;
 const SITES = ["youtube", "tiktok", "instagram"];
 const MIDNIGHT_ALARM = "brt-midnight";
 const BADGE_COLOR = "#ff4d4d";
+const SETTINGS_KEY = BrainRotSettings.SETTINGS_KEY;
 
 // -----------------------------------------------------------------------------
 // Dates
@@ -127,7 +162,13 @@ function normalizeDay(raw) {
 }
 
 function pruneHistory(stats, today, retentionDays) {
-  const limit = retentionDays || HISTORY_RETENTION_DAYS;
+  const limit = retentionDays === undefined ? HISTORY_RETENTION_DAYS : retentionDays;
+
+  // A retention of 0 means keep the full history.
+  if (limit <= 0) {
+    return [];
+  }
+
   const oldest = dateStringOffset(-(limit - 1), parseLocalDate(today || getTodayDateString()));
   const removed = [];
 
@@ -141,7 +182,7 @@ function pruneHistory(stats, today, retentionDays) {
   return removed;
 }
 
-function normalizeStats(raw, today) {
+function normalizeStats(raw, today, retentionDays) {
   const stats = emptyStats();
   const now = today || getTodayDateString();
 
@@ -170,7 +211,7 @@ function normalizeStats(raw, today) {
     stats.history[legacyDate] = day;
   }
 
-  pruneHistory(stats, now);
+  pruneHistory(stats, now, retentionDays);
   return stats;
 }
 
@@ -279,8 +320,13 @@ async function readStoredStats() {
     [STATS_KEY]: null,
     scrolledCount: null,
     activeTimeSeconds: null,
-    lastResetDate: null
+    lastResetDate: null,
+    [SETTINGS_KEY]: null
   });
+
+  const settings = BrainRotSettings.normalizeSettings(data[SETTINGS_KEY]);
+  const retention = settings.historyRetentionDays;
+  lastRetentionDays = retention;
 
   const hadLegacyValues = LEGACY_KEYS.some(
     (key) => data[key] !== null && data[key] !== undefined
@@ -294,8 +340,8 @@ async function readStoredStats() {
       lastResetDate: data.lastResetDate
     };
 
-  const stats = normalizeStats(rawStats, getTodayDateString());
-  const pruned = pruneHistory(stats, getTodayDateString());
+  const stats = normalizeStats(rawStats, getTodayDateString(), retention);
+  const pruned = pruneHistory(stats, getTodayDateString(), retention);
 
   if (hadLegacyValues) {
     await storageRemove(LEGACY_KEYS);
@@ -311,6 +357,16 @@ async function readStoredStats() {
 // Serializes every read-modify-write cycle.
 let writeQueue = Promise.resolve();
 
+// Retention from the most recent read; keeps withStats pruning in step with
+// the settings that were just loaded. Only mutated inside the serialized queue.
+let lastRetentionDays = HISTORY_RETENTION_DAYS;
+
+function readSettings() {
+  return storageGet({ [SETTINGS_KEY]: null }).then((data) =>
+    BrainRotSettings.normalizeSettings(data[SETTINGS_KEY])
+  );
+}
+
 function enqueue(task) {
   const result = writeQueue.then(task, task);
   writeQueue = result.then(
@@ -324,7 +380,7 @@ function withStats(mutator) {
   return enqueue(async () => {
     const stats = await readStoredStats();
     const result = await mutator(stats);
-    pruneHistory(stats, getTodayDateString());
+    pruneHistory(stats, getTodayDateString(), lastRetentionDays);
     await saveStats(stats);
     await refreshBadge(stats);
     return result === undefined ? null : result;
@@ -363,11 +419,17 @@ function handleMessage(message) {
         return Promise.resolve(null);
       }
 
-      return withStats((stats) => {
-        applyActivity(stats, {
-          date: today,
-          site: validSite(message.site),
-          scrolledCount: count
+      const site = validSite(message.site);
+
+      return readSettings().then((settings) => {
+        // A known platform that is switched off is ignored entirely, even for
+        // the grand total. Unknown sites keep the previous behavior.
+        if (site && settings.platforms[site] === false) {
+          return null;
+        }
+
+        return withStats((stats) => {
+          applyActivity(stats, { date: today, site, scrolledCount: count });
         });
       });
     }
@@ -379,11 +441,15 @@ function handleMessage(message) {
         return Promise.resolve(null);
       }
 
-      return withStats((stats) => {
-        applyActivity(stats, {
-          date: today,
-          site: validSite(message.site),
-          activeTimeSeconds: seconds
+      const site = validSite(message.site);
+
+      return readSettings().then((settings) => {
+        if (site && settings.platforms[site] === false) {
+          return null;
+        }
+
+        return withStats((stats) => {
+          applyActivity(stats, { date: today, site, activeTimeSeconds: seconds });
         });
       });
     }
@@ -454,7 +520,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function runMaintenance() {
   return enqueue(async () => {
     const stats = await readStoredStats();
-    pruneHistory(stats, getTodayDateString());
+    pruneHistory(stats, getTodayDateString(), lastRetentionDays);
     await saveStats(stats);
     await refreshBadge(stats);
     return stats;

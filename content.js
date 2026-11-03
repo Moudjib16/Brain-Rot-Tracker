@@ -3,7 +3,70 @@
 
   const SYNC_INTERVAL_SECONDS = 1;
 
-  let unsyncedSeconds = 0;  function isUserActive() {
+  if (typeof BrainRotSettings === "undefined") {
+    // Content scripts are declared with settings.js first; this is a
+    // defensive fallback so the tracker never hard-fails.
+    globalThis.BrainRotSettings = {
+      SETTINGS_KEY: "settings",
+      normalizeSettings() {
+        return {
+          platforms: { youtube: true, tiktok: true, instagram: true },
+          historyRetentionDays: 365,
+          debugLogging: true
+        };
+      }
+    };
+  }
+
+  let currentSettings = BrainRotSettings.normalizeSettings(null);
+
+  function applySettings(raw) {
+    currentSettings = BrainRotSettings.normalizeSettings(raw);
+  }
+
+  function isSiteEnabled(siteName) {
+    if (!siteName) {
+      return true;
+    }
+
+    return currentSettings.platforms[siteName] !== false;
+  }
+
+  function debugLog() {
+    if (!currentSettings.debugLogging) {
+      return;
+    }
+
+    console.debug.apply(console, arguments);
+  }
+
+  try {
+    chrome.storage.local.get({ [BrainRotSettings.SETTINGS_KEY]: null }, (data) => {
+      if (chrome.runtime.lastError) {
+        return;
+      }
+
+      applySettings(data && data[BrainRotSettings.SETTINGS_KEY]);
+    });
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local") {
+        return;
+      }
+
+      const change = changes[BrainRotSettings.SETTINGS_KEY];
+
+      if (change) {
+        applySettings(change.newValue);
+      }
+    });
+  } catch (error) {
+    // Storage APIs unavailable; defaults keep tracking enabled.
+  }
+
+  let unsyncedSeconds = 0;
+
+  function isUserActive() {
     // Opening an extension popup blurs the page even though the user is still
     // actively viewing that tab. Page visibility is the reliable signal here:
     // it becomes hidden when the user switches tabs, minimizes the window, or
@@ -12,7 +75,7 @@
   }
 
   function tick() {
-    if (isUserActive()) {
+    if (isUserActive() && isSiteEnabled(site)) {
       unsyncedSeconds += 1;
 
       if (unsyncedSeconds >= SYNC_INTERVAL_SECONDS) {
@@ -23,6 +86,11 @@
 
   function flushActiveTime() {
     if (unsyncedSeconds <= 0) {
+      return;
+    }
+
+    if (!isSiteEnabled(site)) {
+      unsyncedSeconds = 0;
       return;
     }
 
@@ -142,6 +210,10 @@
   function checkPendingCount(element) {
     pendingTimers.delete(element);
 
+    if (!isSiteEnabled(site)) {
+      return;
+    }
+
     if ((latestVisibility.get(element) ?? 0) < 0.6) {
       return;
     }
@@ -154,7 +226,7 @@
       }
 
       rememberIdentity(identity);
-      console.debug("[Brain Rot Tracker] counted video:", identity);
+      debugLog("[Brain Rot Tracker] counted video:", identity);
       sendScrollIncrement(() => countedIdentities.delete(identity));
       return;
     }
@@ -164,7 +236,7 @@
     }
 
     element.setAttribute("data-extension-tracked", "true");
-    console.debug("[Brain Rot Tracker] counted video element (no identity resolvable)");
+    debugLog("[Brain Rot Tracker] counted video element (no identity resolvable)");
     sendScrollIncrement(() => element.removeAttribute("data-extension-tracked"));
   }
 
@@ -236,6 +308,11 @@
     const shortWatch = { identity: null, since: 0 };
 
     setInterval(() => {
+      if (!isSiteEnabled(site)) {
+        shortWatch.identity = null;
+        return;
+      }
+
       if (!window.location.pathname.startsWith("/shorts/")) {
         shortWatch.identity = null;
         return;
@@ -261,7 +338,7 @@
 
       if (now - shortWatch.since >= MIN_VISIBLE_MS) {
         rememberIdentity(identity);
-        console.debug("[Brain Rot Tracker] counted short via is-active poll:", identity);
+        debugLog("[Brain Rot Tracker] counted short via is-active poll:", identity);
         sendScrollIncrement(() => countedIdentities.delete(identity));
       }
     }, 500);

@@ -12,13 +12,68 @@
         <img class="logo" src="../icons/icon128.png" alt="" width="56" height="56" />
         <div>
           <h1>Brain Rot Tracker</h1>
+          <p class="lede">Choose what the extension watches. Changes apply right away, no reload needed.</p>
         </div>
       </header>
 
-      <section class="panel" aria-labelledby="settings-heading">
-        <h2 id="settings-heading">Settings</h2>
-        <p class="empty">No settings have been added yet.</p>
+      <section class="panel" aria-labelledby="platforms-heading">
+        <h2 id="platforms-heading">Platforms</h2>
+        <p class="hint">
+          Switching a platform off stops counting new videos and time on that site. Your
+          existing history is kept.
+        </p>
+        <ul class="setting-list">
+          <li class="setting-row">
+            <span class="setting-text">
+              <span class="setting-label" id="label-youtube">YouTube Shorts</span>
+              <span class="setting-desc">Shorts in the feed, full-screen, and shelves.</span>
+            </span>
+            <label class="switch">
+              <input
+                type="checkbox"
+                class="switch-input"
+                data-site="youtube"
+                aria-labelledby="label-youtube"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </li>
+          <li class="setting-row">
+            <span class="setting-text">
+              <span class="setting-label" id="label-tiktok">TikTok</span>
+              <span class="setting-desc">The For You feed and TikTok videos.</span>
+            </span>
+            <label class="switch">
+              <input
+                type="checkbox"
+                class="switch-input"
+                data-site="tiktok"
+                aria-labelledby="label-tiktok"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </li>
+          <li class="setting-row">
+            <span class="setting-text">
+              <span class="setting-label" id="label-instagram">Instagram Reels</span>
+              <span class="setting-desc">Reels in the feed, full-screen, and modals.</span>
+            </span>
+            <label class="switch">
+              <input
+                type="checkbox"
+                class="switch-input"
+                data-site="instagram"
+                aria-labelledby="label-instagram"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </li>
+        </ul>
+        <p class="status" id="save-status" role="status" aria-live="polite"></p>
       </section>
     </main>
+
+    <script src="../settings.js"></script>
+    <script src="options.js"></script>
   </body>
 </html>
