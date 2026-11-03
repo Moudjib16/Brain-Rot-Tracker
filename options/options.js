@@ -7,6 +7,7 @@
   const statusEl = document.getElementById("save-status");
   const toggles = Array.from(document.querySelectorAll(".switch-input[data-site]"));
   const retentionSelect = document.getElementById("history-retention");
+  const debugToggle = document.getElementById("debug-logging");
 
   let statusTimer = null;
 
@@ -64,6 +65,7 @@
     }
 
     retentionSelect.value = String(settings.historyRetentionDays);
+    debugToggle.checked = settings.debugLogging !== false;
   }
 
   async function save(source) {
@@ -74,6 +76,7 @@
     }
 
     settings.historyRetentionDays = toRetentionValue(retentionSelect.value);
+    settings.debugLogging = debugToggle.checked;
 
     const saved = await writeSettings(settings);
 
@@ -94,6 +97,7 @@
   }
 
   retentionSelect.addEventListener("change", () => save("retention"));
+  debugToggle.addEventListener("change", () => save());
 
   // Keep controls in sync when settings change in another tab or window.
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -105,6 +109,7 @@
       }
 
       retentionSelect.value = String(settings.historyRetentionDays);
+      debugToggle.checked = settings.debugLogging !== false;
     }
   });
 

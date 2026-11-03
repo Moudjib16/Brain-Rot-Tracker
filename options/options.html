@@ -89,6 +89,31 @@
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="debug-heading">
+        <h2 id="debug-heading">Debugging</h2>
+        <p class="hint">Diagnostic output from the tracker.</p>
+        <ul class="setting-list">
+          <li class="setting-row">
+            <span class="setting-text">
+              <span class="setting-label" id="label-debug">Verbose console logging</span>
+              <span class="setting-desc">
+                Log each counted video and the tracking hook in use. Needs the console
+                set to the Verbose level. On by default.
+              </span>
+            </span>
+            <label class="switch">
+              <input
+                type="checkbox"
+                class="switch-input"
+                id="debug-logging"
+                aria-labelledby="label-debug"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </li>
+        </ul>
+      </section>
+
       <p class="status" id="save-status" role="status" aria-live="polite"></p>
     </main>
 

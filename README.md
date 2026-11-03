@@ -108,6 +108,8 @@ no reload is needed.
 - **History retention** — keep 30, 90, 180, or 365 days of daily stats, or keep them
   forever. Choosing a shorter window deletes older days as soon as the setting is
   saved.
+- **Verbose console logging** — enables or silences the `console.debug` output the
+  content script emits for each counted video. Warnings and errors are always shown.
 
 ```json
 {
