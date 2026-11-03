@@ -401,6 +401,32 @@ function handleMessage(message) {
         return stats;
       });
 
+    case "RESTORE_STATS": {
+      const snapshot = normalizeDay(message.day);
+
+      return withStats((stats) => {
+        const day = stats.history[today] || emptyDay();
+        stats.history[today] = day;
+
+        day.scrolledCount += snapshot.scrolledCount;
+        day.activeTimeSeconds += snapshot.activeTimeSeconds;
+
+        for (const site of SITES) {
+          const siteStats = snapshot.sites[site];
+
+          if (!siteStats) {
+            continue;
+          }
+
+          const current = day.sites[site] || (day.sites[site] = emptySiteStats());
+          current.scrolledCount += siteStats.scrolledCount;
+          current.activeTimeSeconds += siteStats.activeTimeSeconds;
+        }
+
+        return stats;
+      });
+    }
+
     default:
       return Promise.resolve(null);
   }

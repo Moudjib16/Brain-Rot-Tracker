@@ -9,34 +9,58 @@
   <body>
     <main class="container">
       <header class="header">
-        <h1 class="title">Brain Rot Tracker</h1>
-        <p class="subtitle" id="date-label">Today</p>
+        <div class="header-text">
+          <h1 class="title">Brain Rot Tracker</h1>
+          <p class="subtitle" id="date-label">Today</p>
+        </div>
       </header>
 
-      <section class="card card-scrolls">
-        <span class="card-label">Videos scrolled</span>
-        <span class="card-value" id="scrolled-count">0</span>
+      <div class="stat-grid">
+        <section class="card card-scrolls">
+          <span class="card-label">Videos scrolled</span>
+          <span class="card-value" id="scrolled-count" aria-live="polite" aria-atomic="true">0</span>
+        </section>
+
+        <section class="card card-time">
+          <span class="card-label">Active time</span>
+          <span class="card-value card-value-mono" id="active-time" aria-live="polite" aria-atomic="true">00:00:00</span>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="week-heading">
+        <div class="panel-head">
+          <h2 class="panel-title" id="week-heading">Last 7 days</h2>
+          <span class="panel-meta" id="week-summary"></span>
+        </div>
+        <ol
+          class="chart"
+          id="week-chart"
+          aria-label="Videos per day over the last 7 days"
+        ></ol>
+        <p class="streak" id="streak" hidden></p>
       </section>
 
-      <section class="card card-time">
-        <span class="card-label">Active time</span>
-        <span class="card-value card-value-mono" id="active-time">00:00:00</span>
-      </section>
-
-      <section class="breakdown" id="breakdown" hidden>
-        <h2 class="breakdown-title">
-          By platform
-          <span class="breakdown-meta">last 7 days</span>
-        </h2>
+      <section class="panel" id="breakdown" aria-labelledby="sites-heading" hidden>
+        <div class="panel-head">
+          <h2 class="panel-title" id="sites-heading">By platform</h2>
+          <span class="panel-meta">last 7 days</span>
+        </div>
         <ul class="site-list" id="site-list"></ul>
       </section>
 
-      <button class="reset-button" id="reset-stats" type="button">Reset today</button>
+      <button class="button button-secondary" id="reset-stats" type="button">
+        Reset today
+      </button>
 
       <div class="export-row">
         <button class="link-button" id="export-csv" type="button">Export CSV</button>
         <span class="export-divider" aria-hidden="true">·</span>
         <button class="link-button" id="export-json" type="button">Export JSON</button>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+        <span class="toast-message" id="toast-message"></span>
+        <button class="toast-action" id="toast-action" type="button" hidden></button>
       </div>
     </main>
 

@@ -13,9 +13,10 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 - **Per-platform totals** — videos and time are tracked separately for YouTube, TikTok,
   and Instagram.
 
-The popup displays today's video count and active time, a seven-day breakdown by
-platform, CSV/JSON export buttons, and a **Reset today** button that clears only the
-current day. The toolbar badge shows today's video count.
+The popup shows today's video count and active time, a seven-day chart, your current
+streak, a per-platform breakdown, CSV/JSON export buttons, and a **Reset today** button
+with an eight-second undo. It follows the operating system's light or dark theme. The
+toolbar badge shows today's video count.
 
 ## How it works
 
@@ -51,12 +52,12 @@ Reload the extension after changing its files, then refresh any already-open sup
 ```text
 .
 ├── manifest.json       # Extension metadata, permissions, and site matches
-├── background.js       # Persistent stats, daily reset, and message handling
+├── background.js       # History storage, badge, alarms, and message handling
 ├── content.js          # Active-time and video-view tracking in supported feeds
 └── popup/
     ├── popup.html      # Extension popup markup
-    ├── popup.css       # Popup styling
-    └── popup.js        # Renders stats and handles manual resets
+    ├── popup.css       # Popup styling and light/dark themes
+    └── popup.js        # Chart, streak, breakdown, export, reset, and undo
 ```
 
 ## Storage
