@@ -4,10 +4,12 @@
   const SYNC_INTERVAL_SECONDS = 1;
 
   let unsyncedSeconds = 0;
-  let windowFocused = true;
-
   function isUserActive() {
-    return document.hidden === false && windowFocused === true;
+    // Opening an extension popup blurs the page even though the user is still
+    // actively viewing that tab. Page visibility is the reliable signal here:
+    // it becomes hidden when the user switches tabs, minimizes the window, or
+    // locks the screen, but stays visible while the popup is open.
+    return document.visibilityState === "visible";
   }
 
   function tick() {
@@ -48,22 +50,16 @@
     }
   });
 
-  window.addEventListener("focus", () => {
-    windowFocused = true;
-  });
-
-  window.addEventListener("blur", () => {
-    windowFocused = false;
-    flushActiveTime();
-  });
-
   window.addEventListener("pagehide", flushActiveTime);
   window.addEventListener("beforeunload", flushActiveTime);
 
   const SELECTORS_BY_DOMAIN = [
     { match: /(^|\.)youtube\.com$/, selectors: ["ytd-reel-video-renderer"] },
     { match: /(^|\.)tiktok\.com$/, selectors: ['[data-e2e="recommend-list-item-container"]', "video"] },
-    { match: /(^|\.)instagram\.com$/, selectors: ["article", 'div[role="dialog"] video'] }
+    // Instagram's reel markup changes frequently. Observing the video itself
+    // works for the feed, full-screen reels, and modal reels, unlike observing
+    // an article wrapper that often never reaches the visibility threshold.
+    { match: /(^|\.)instagram\.com$/, selectors: ["video"] }
   ];
 
   const hostname = window.location.hostname;
@@ -97,16 +93,22 @@
     const video =
       element instanceof HTMLVideoElement ? element : element.querySelector("video");
 
-    if (video && video.currentSrc) {
-      return video.currentSrc;
-    }
-
-    const link = element.querySelector(
-      'a[href*="/shorts/"], a[href*="/video/"], a[href*="/photo/"], a[href*="/reel/"], a[href*="/reels/"]'
-    );
+    // A video is frequently nested inside the reel permalink on Instagram.
+    // Check both the element and its ancestors before falling back to the CDN
+    // URL, which can be short-lived or absent until playback starts.
+    const permalinkSelector =
+      'a[href*="/shorts/"], a[href*="/video/"], a[href*="/photo/"], a[href*="/reel/"], a[href*="/reels/"]';
+    const link =
+      (element instanceof Element && element.closest(permalinkSelector)) ||
+      element.querySelector(permalinkSelector) ||
+      (video && video.closest(permalinkSelector));
 
     if (link && link.href) {
       return link.href.split("?")[0].split("#")[0];
+    }
+
+    if (video && video.currentSrc) {
+      return video.currentSrc;
     }
 
     return null;
