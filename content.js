@@ -56,5 +56,91 @@
   window.addEventListener("pagehide", flushActiveTime);
   window.addEventListener("beforeunload", flushActiveTime);
 
+  const SELECTORS_BY_DOMAIN = [
+    { match: /(^|\.)youtube\.com$/, selectors: ["ytd-reel-video-renderer"] },
+    { match: /(^|\.)tiktok\.com$/, selectors: ['div[data-e2e="recommend-list-item-container"]', "video"] },
+    { match: /(^|\.)instagram\.com$/, selectors: ["article", 'div[role="dialog"] video'] }
+  ];
+
+  const hostname = window.location.hostname;
+  const domainSelectors =
+    (SELECTORS_BY_DOMAIN.find((entry) => entry.match.test(hostname)) || {}).selectors ||
+    SELECTORS_BY_DOMAIN.flatMap((entry) => entry.selectors);
+
+  const observedElements = new WeakSet();
+
+  function sendScrollIncrement(element) {
+    try {
+      chrome.runtime.sendMessage({ action: "INCREMENT_SCROLL" }, () => {
+        if (chrome.runtime.lastError) {
+          element.removeAttribute("data-extension-tracked");
+        }
+      });
+    } catch (error) {
+      element.removeAttribute("data-extension-tracked");
+    }
+  }
+
+  const videoObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.6) {
+          continue;
+        }
+
+        const element = entry.target;
+
+        if (element.getAttribute("data-extension-tracked") === "true") {
+          continue;
+        }
+
+        element.setAttribute("data-extension-tracked", "true");
+        sendScrollIncrement(element);
+      }
+    },
+    { threshold: 0.6 }
+  );
+
+  function observeVideosIn(root) {
+    for (const selector of domainSelectors) {
+      const candidates = root.querySelectorAll(selector);
+
+      for (const element of candidates) {
+        if (observedElements.has(element)) {
+          continue;
+        }
+
+        observedElements.add(element);
+        videoObserver.observe(element);
+      }
+    }
+  }
+
+  const mutationObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (!(node instanceof Element)) {
+          continue;
+        }
+
+        for (const selector of domainSelectors) {
+          if (node.matches(selector) && !observedElements.has(node)) {
+            observedElements.add(node);
+            videoObserver.observe(node);
+          }
+        }
+
+        observeVideosIn(node);
+      }
+    }
+  });
+
+  observeVideosIn(document);
+
+  mutationObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
   setInterval(tick, 1000);
 })();
