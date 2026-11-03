@@ -68,6 +68,9 @@
     SELECTORS_BY_DOMAIN.flatMap((entry) => entry.selectors);
 
   const observedElements = new WeakSet();
+  const MIN_VISIBLE_MS = 700;
+  const latestVisibility = new WeakMap();
+  const pendingTimers = new WeakMap();
 
   function sendScrollIncrement(element) {
     try {
@@ -81,24 +84,46 @@
     }
   }
 
+  function checkPendingCount(element) {
+    pendingTimers.delete(element);
+
+    if ((latestVisibility.get(element) ?? 0) < 0.6) {
+      return;
+    }
+
+    if (element.getAttribute("data-extension-tracked") === "true") {
+      return;
+    }
+
+    element.setAttribute("data-extension-tracked", "true");
+    sendScrollIncrement(element);
+  }
+
   const videoObserver = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (!entry.isIntersecting || entry.intersectionRatio < 0.6) {
-          continue;
-        }
-
         const element = entry.target;
+        const ratio = entry.isIntersecting ? entry.intersectionRatio : 0;
+        latestVisibility.set(element, ratio);
 
         if (element.getAttribute("data-extension-tracked") === "true") {
           continue;
         }
 
-        element.setAttribute("data-extension-tracked", "true");
-        sendScrollIncrement(element);
+        if (ratio >= 0.6) {
+          if (!pendingTimers.has(element)) {
+            pendingTimers.set(element, setTimeout(() => checkPendingCount(element), MIN_VISIBLE_MS));
+          }
+        } else {
+          const timer = pendingTimers.get(element);
+          if (timer) {
+            clearTimeout(timer);
+            pendingTimers.delete(element);
+          }
+        }
       }
     },
-    { threshold: 0.6 }
+    { threshold: [0, 0.6] }
   );
 
   function observeVideosIn(root) {
