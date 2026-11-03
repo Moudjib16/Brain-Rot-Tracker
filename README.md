@@ -10,9 +10,11 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 - **Videos viewed** — a video is counted once after it has remained at least 60% visible for 700 ms.
 - **Daily stats** — each local calendar day is stored separately, so history is kept
   instead of being overwritten by the daily rollover.
+- **Per-platform totals** — videos and time are tracked separately for YouTube, TikTok,
+  and Instagram.
 
-The popup displays today's video count and active time, updates as storage changes, and
-includes a **Reset Stats** button that clears only the current day.
+The popup displays today's video count and active time, a seven-day breakdown by
+platform, and a **Reset today** button that clears only the current day.
 
 ## How it works
 

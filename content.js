@@ -3,8 +3,7 @@
 
   const SYNC_INTERVAL_SECONDS = 1;
 
-  let unsyncedSeconds = 0;
-  function isUserActive() {
+  let unsyncedSeconds = 0;  function isUserActive() {
     // Opening an extension popup blurs the page even though the user is still
     // actively viewing that tab. Page visibility is the reliable signal here:
     // it becomes hidden when the user switches tabs, minimizes the window, or
@@ -32,7 +31,7 @@
 
     try {
       chrome.runtime.sendMessage(
-        { action: "ADD_ACTIVE_TIME", seconds: secondsToSend },
+        { action: "ADD_ACTIVE_TIME", seconds: secondsToSend, site },
         () => {
           if (chrome.runtime.lastError) {
             unsyncedSeconds += secondsToSend;
@@ -53,19 +52,33 @@
   window.addEventListener("pagehide", flushActiveTime);
   window.addEventListener("beforeunload", flushActiveTime);
 
-  const SELECTORS_BY_DOMAIN = [
-    { match: /(^|\.)youtube\.com$/, selectors: ["ytd-reel-video-renderer"] },
-    { match: /(^|\.)tiktok\.com$/, selectors: ['[data-e2e="recommend-list-item-container"]', "video"] },
-    // Instagram's reel markup changes frequently. Observing the video itself
-    // works for the feed, full-screen reels, and modal reels, unlike observing
-    // an article wrapper that often never reaches the visibility threshold.
-    { match: /(^|\.)instagram\.com$/, selectors: ["video"] }
+  const SITE_CONFIG = [
+    {
+      site: "youtube",
+      match: /(^|\.)youtube\.com$/,
+      selectors: ["ytd-reel-video-renderer"]
+    },
+    {
+      site: "tiktok",
+      match: /(^|\.)tiktok\.com$/,
+      selectors: ['[data-e2e="recommend-list-item-container"]', "video"]
+    },
+    {
+      // Instagram's reel markup changes frequently. Observing the video itself
+      // works for the feed, full-screen reels, and modal reels, unlike
+      // observing an article wrapper that often never reaches the threshold.
+      site: "instagram",
+      match: /(^|\.)instagram\.com$/,
+      selectors: ["video"]
+    }
   ];
 
   const hostname = window.location.hostname;
-  const domainSelectors =
-    (SELECTORS_BY_DOMAIN.find((entry) => entry.match.test(hostname)) || {}).selectors ||
-    SELECTORS_BY_DOMAIN.flatMap((entry) => entry.selectors);
+  const matchedSite = SITE_CONFIG.find((entry) => entry.match.test(hostname)) || null;
+  const site = matchedSite ? matchedSite.site : null;
+  const domainSelectors = matchedSite
+    ? matchedSite.selectors
+    : SITE_CONFIG.flatMap((entry) => entry.selectors);
 
   const observedElements = new WeakSet();
   const MIN_VISIBLE_MS = 700;
@@ -116,7 +129,7 @@
 
   function sendScrollIncrement(onFailure) {
     try {
-      chrome.runtime.sendMessage({ action: "INCREMENT_SCROLL" }, () => {
+      chrome.runtime.sendMessage({ action: "INCREMENT_SCROLL", site }, () => {
         if (chrome.runtime.lastError) {
           onFailure();
         }

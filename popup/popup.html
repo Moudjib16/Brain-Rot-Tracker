@@ -23,7 +23,15 @@
         <span class="card-value card-value-mono" id="active-time">00:00:00</span>
       </section>
 
-      <button class="reset-button" id="reset-stats" type="button">Reset Stats</button>
+      <section class="breakdown" id="breakdown" hidden>
+        <h2 class="breakdown-title">
+          By platform
+          <span class="breakdown-meta">last 7 days</span>
+        </h2>
+        <ul class="site-list" id="site-list"></ul>
+      </section>
+
+      <button class="reset-button" id="reset-stats" type="button">Reset today</button>
     </main>
 
     <script src="popup.js"></script>
