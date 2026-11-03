@@ -10,6 +10,14 @@
   const resetHourSelect = document.getElementById("reset-hour");
   const badgeModeSelect = document.getElementById("badge-mode");
   const debugToggle = document.getElementById("debug-logging");
+  const reduceMotionToggle = document.getElementById("reduce-motion");
+
+  function applyMotionSetting(settings) {
+    document.documentElement.classList.toggle(
+      "reduce-motion",
+      Boolean(settings && settings.reduceMotion)
+    );
+  }
 
   let statusTimer = null;
 
@@ -98,6 +106,8 @@
     resetHourSelect.value = String(settings.resetHour);
     badgeModeSelect.value = settings.badgeMode;
     debugToggle.checked = settings.debugLogging !== false;
+    reduceMotionToggle.checked = settings.reduceMotion === true;
+    applyMotionSetting(settings);
   }
 
   async function save(source) {
@@ -111,8 +121,10 @@
     settings.resetHour = toHourValue(resetHourSelect.value);
     settings.badgeMode = toBadgeModeValue(badgeModeSelect.value);
     settings.debugLogging = debugToggle.checked;
+    settings.reduceMotion = reduceMotionToggle.checked;
 
     const saved = await writeSettings(settings);
+    applyMotionSetting(settings);
 
     if (saved) {
       showStatus(
@@ -134,6 +146,7 @@
   resetHourSelect.addEventListener("change", () => save());
   badgeModeSelect.addEventListener("change", () => save());
   debugToggle.addEventListener("change", () => save());
+  reduceMotionToggle.addEventListener("change", () => save());
 
   // Keep controls in sync when settings change in another tab or window.
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -149,6 +162,8 @@
       resetHourSelect.value = String(settings.resetHour);
       badgeModeSelect.value = settings.badgeMode;
       debugToggle.checked = settings.debugLogging !== false;
+      reduceMotionToggle.checked = settings.reduceMotion === true;
+      applyMotionSetting(settings);
     }
   });
 

@@ -10,7 +10,8 @@
  *     historyRetentionDays: 365,   // 0 keeps history forever
  *     debugLogging: true,
  *     resetHour: 0,                // hour of day the tracking day starts
- *     badgeMode: "count"           // "count" | "time" | "none"
+ *     badgeMode: "count",           // "count" | "time" | "none"
+ *     reduceMotion: false          // disable extension animations
  *   }
  */
 (function (root) {
@@ -24,7 +25,8 @@
     historyRetentionDays: 365,
     debugLogging: true,
     resetHour: 0,
-    badgeMode: "count"
+    badgeMode: "count",
+    reduceMotion: false
   };
 
   const BADGE_MODES = ["count", "time", "none"];
@@ -78,7 +80,11 @@
           ? source.debugLogging
           : DEFAULT_SETTINGS.debugLogging,
       resetHour: toHourValue(source.resetHour, DEFAULT_SETTINGS.resetHour),
-      badgeMode: toBadgeMode(source.badgeMode, DEFAULT_SETTINGS.badgeMode)
+      badgeMode: toBadgeMode(source.badgeMode, DEFAULT_SETTINGS.badgeMode),
+      reduceMotion:
+        typeof source.reduceMotion === "boolean"
+          ? source.reduceMotion
+          : DEFAULT_SETTINGS.reduceMotion
     };
   }
 

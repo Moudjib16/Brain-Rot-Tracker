@@ -113,6 +113,8 @@ no reload is needed.
   Existing history is unchanged.
 - **Toolbar badge** — choose what the toolbar icon shows: today's video count (default),
   compact active time (`42m`, `2h05`), or nothing at all.
+- **Reduce motion** — disables the popup and settings-page transitions and animations,
+  for users whose system does not already request reduced motion.
 - **Verbose console logging** — enables or silences the `console.debug` output the
   content script emits for each counted video. Warnings and errors are always shown.
 
@@ -123,7 +125,8 @@ no reload is needed.
     "historyRetentionDays": 365,
     "debugLogging": true,
     "resetHour": 0,
-    "badgeMode": "count"
+    "badgeMode": "count",
+    "reduceMotion": false
   }
 }
 ```

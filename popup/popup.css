@@ -386,6 +386,12 @@ body {
   display: none;
 }
 
+.reduce-motion,
+.reduce-motion * {
+  transition: none !important;
+  animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

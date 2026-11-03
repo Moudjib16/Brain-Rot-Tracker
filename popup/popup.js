@@ -502,11 +502,21 @@ function applyResetHourSetting(raw) {
   displayedDate = getTodayDateString();
 }
 
+function applyMotionSetting(raw) {
+  const settings =
+    typeof BrainRotSettings !== "undefined"
+      ? BrainRotSettings.normalizeSettings(raw)
+      : { reduceMotion: false };
+
+  document.documentElement.classList.toggle("reduce-motion", settings.reduceMotion === true);
+}
+
 function loadResetHourSetting(callback) {
   try {
     chrome.storage.local.get({ settings: null }, (data) => {
       if (!chrome.runtime.lastError) {
         applyResetHourSetting(data && data.settings);
+        applyMotionSetting(data && data.settings);
       }
 
       if (callback) {
@@ -531,6 +541,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   if (changes.settings) {
     applyResetHourSetting(changes.settings.newValue);
+    applyMotionSetting(changes.settings.newValue);
     updateDateLabel();
 
     if (latestStats) {

@@ -121,6 +121,31 @@
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="a11y-heading">
+        <h2 id="a11y-heading">Accessibility</h2>
+        <p class="hint">Motion and animation preferences.</p>
+        <ul class="setting-list">
+          <li class="setting-row">
+            <span class="setting-text">
+              <span class="setting-label" id="label-reduce">Reduce motion</span>
+              <span class="setting-desc">
+                Turn off transitions and animations in the popup and this page, even if
+                your system doesn't ask for reduced motion.
+              </span>
+            </span>
+            <label class="switch">
+              <input
+                type="checkbox"
+                class="switch-input"
+                id="reduce-motion"
+                aria-labelledby="label-reduce"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </li>
+        </ul>
+      </section>
+
       <section class="panel" aria-labelledby="debug-heading">
         <h2 id="debug-heading">Debugging</h2>
         <p class="hint">Diagnostic output from the tracker.</p>
