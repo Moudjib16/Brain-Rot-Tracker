@@ -46,9 +46,13 @@ body {
 
 .header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  flex: 0 0 auto;
+  border-radius: 9px;
 }
 
 .header-text {

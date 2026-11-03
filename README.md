@@ -54,6 +54,7 @@ Reload the extension after changing its files, then refresh any already-open sup
 ├── manifest.json       # Extension metadata, permissions, and site matches
 ├── background.js       # History storage, badge, alarms, and message handling
 ├── content.js          # Active-time and video-view tracking in supported feeds
+├── icons/              # 16/32/48/128 px icons
 └── popup/
     ├── popup.html      # Extension popup markup
     ├── popup.css       # Popup styling and light/dark themes
