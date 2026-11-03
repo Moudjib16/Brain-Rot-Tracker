@@ -1,60 +1,77 @@
 # Brain Rot Tracker
 
-A cross-browser (Chrome & Firefox) Manifest V3 extension that tracks how much time you spend on short-form video feeds and how many videos you scroll through each day — YouTube Shorts, TikTok, and Instagram Reels.
+Brain Rot Tracker is a Manifest V3 browser extension for Chrome and Firefox that keeps a daily tally of time spent on short-form video feeds and the videos you view.
 
-## Features
+It supports YouTube Shorts, TikTok, and Instagram Reels.
 
-- **Daily active-time tracking** — counts seconds while a supported tab is visible, including while the extension popup is open; syncs to storage every second.
-- **Unique videos-scrolled counter** — counts each video once per day, identified by a stable per-video identity (Shorts URL, CDN source URL, or post permalink), not by the fragile recycled DOM elements.
-- **Rapid-scroll protection** — a video only counts after staying ≥60% visible for 700 ms, so flicking past videos doesn't inflate the count.
-- **Daily auto-reset** — counters reset at local midnight (checked on install, browser startup, and on every message).
-- **Live popup UI** — videos scrolled today, active time as `HH:MM:SS`, manual reset button, live updates via `chrome.storage.onChanged`.
-- **Cross-browser** — single codebase using `chrome.*` APIs (supported by Firefox) with dual `background.service_worker` / `background.scripts` manifest entries.
+## What it tracks
 
-## Installation
+- **Active time** — time accrued while a supported feed is visible in the active tab.
+- **Videos viewed** — a video is counted once after it has remained at least 60% visible for 700 ms.
+- **Daily stats** — the counters reset automatically on a new local calendar day.
 
-### Chrome
-1. Go to `chrome://extensions`.
-2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select this folder.
-
-### Firefox
-1. Go to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on** and select `manifest.json`.
-3. For a permanent install, package/sign the extension through addons.mozilla.org (the `browser_specific_settings.gecko` ID is required for MV3 signing).
-
-After editing any file, reload the extension on the extensions page **and refresh open tabs** — content scripts are not injected retroactively.
+The popup displays today's video count and active time, updates as storage changes, and includes a **Reset Stats** button.
 
 ## How it works
 
+The extension uses a content script on supported sites and stores all statistics locally with `chrome.storage.local`.
+
+| Platform | Detection approach |
+| --- | --- |
+| YouTube Shorts | Polls the active `ytd-reel-video-renderer` because Shorts recycles page elements. |
+| TikTok | Watches recommended-video containers and video elements with an `IntersectionObserver`. |
+| Instagram Reels | Watches video elements with an `IntersectionObserver`, covering feed, full-screen, and modal reels. |
+
+Videos are deduplicated by a stable identifier when one is available (such as a Shorts ID, permalink, or video source URL). A bounded in-memory cache prevents repeat counts as an item is revisited during the same session.
+
+## Install locally
+
+### Chrome
+
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose this repository folder.
+
+### Firefox
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Choose **Load Temporary Add-on**.
+3. Select `manifest.json` from this repository.
+
+Reload the extension after changing its files, then refresh any already-open supported pages so the updated content script can run.
+
+## Project structure
+
 ```text
-├── manifest.json      # MV3 manifest (Chrome + Firefox entries)
-├── background.js      # Service worker / event page: storage schema, daily reset, message handling
-├── content.js         # Injected into YouTube/TikTok/Instagram: active-time timer + video counting
+.
+├── manifest.json       # Extension metadata, permissions, and site matches
+├── background.js       # Persistent stats, daily reset, and message handling
+├── content.js          # Active-time and video-view tracking in supported feeds
 └── popup/
-    ├── popup.html     # Stats UI
-    ├── popup.css      # Styles (300px dark card layout)
-    └── popup.js       # Loads/renders stats, reset button, live onChanged updates
+    ├── popup.html      # Extension popup markup
+    ├── popup.css       # Popup styling
+    └── popup.js        # Renders stats and handles manual resets
 ```
 
-### Active time
-`content.js` runs a 1-second interval. Time accrues only while the page visibility state is `visible`. This deliberately continues while the extension popup is open: opening a browser-extension popup blurs the page, but does not mean you stopped viewing the feed. Accumulated seconds flush to the background every second via `ADD_ACTIVE_TIME` and when the page is hidden or unloaded.
+## Storage
 
-### Video scroll counting
-- **YouTube Shorts** — the page keeps a pool of recycled `ytd-reel-video-renderer` elements, so the extension polls every 500 ms for the renderer marked `is-active` and counts a short after the same short ID stays active for 700 ms. This is independent of scroll gesture type (wheel, touchpad, keyboard).
-- **TikTok / Instagram Reels** — an `IntersectionObserver` (`threshold: [0, 0.6]`) plus a `MutationObserver` for infinite-scroll DOM additions. Instagram observes the actual video elements so it works across feed, full-screen, and modal Reel layouts. A video counts after sustained 60% visibility for 700 ms.
-- Identities are deduplicated in a bounded (300-entry) session set, so revisiting a video doesn't recount it while re-shown content still counts once.
+The extension stores the following values locally in the browser:
 
-### Background worker
-Owns the `chrome.storage.local` schema (`scrolledCount`, `activeTimeSeconds`, `lastResetDate`), performs the daily reset, and handles `INCREMENT_SCROLL` / `ADD_ACTIVE_TIME` (plus `GET_STATS` / `RESET_STATS` helpers).
+```text
+scrolledCount
+activeTimeSeconds
+lastResetDate
+```
 
-## Usage tips / debugging
+No account, server, or external analytics service is used.
 
-- Open DevTools → Console on a feed page to see `[Brain Rot Tracker] counted ...` debug lines.
-- Popup date label shows the current day; counters reset at local midnight.
+## Notes and limitations
 
-## Known limitations
+- Platform page markup can change, especially on TikTok and Instagram. If counting stops, the site selectors in `content.js` may need updating.
+- The Firefox extension ID in `manifest.json` is a placeholder. Replace it before packaging or signing for Firefox Add-ons.
+- A daily reset is checked when the browser starts, the popup opens, or the extension receives a message. If the browser remains open overnight, the new-day reset occurs on the next such event.
 
-- Site DOM changes (selectors in `content.js`) are the most fragile part — TikTok/Instagram especially. If counting stops, compare `ytd-reel-video-renderer`, `[data-e2e="recommend-list-item-container"]`, and Instagram `video` elements against the live DOM.
-- The `browser_specific_settings.gecko.id` (`brain-rot-tracker@example.org`) is a placeholder — replace it before signing for AMO.
-- Switching days while the browser is open resets stats only when the next message arrives or the popup is opened.
+## Development
+
+There is no build step. Edit the JavaScript, HTML, or CSS files directly, reload the extension, and refresh the relevant feed page to test the change.
