@@ -89,6 +89,25 @@
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="rollover-heading">
+        <h2 id="rollover-heading">Daily rollover</h2>
+        <p class="hint">
+          When the tracking day starts. Views and time before this hour count toward
+          the previous day. Existing history is unchanged.
+        </p>
+        <div class="field">
+          <label class="field-label" for="reset-hour">Day starts at</label>
+          <select class="select" id="reset-hour">
+            <option value="0" selected>Midnight (00:00)</option>
+            <option value="3">3:00 AM</option>
+            <option value="4">4:00 AM</option>
+            <option value="5">5:00 AM</option>
+            <option value="6">6:00 AM</option>
+            <option value="12">Noon (12:00)</option>
+          </select>
+        </div>
+      </section>
+
       <section class="panel" aria-labelledby="debug-heading">
         <h2 id="debug-heading">Debugging</h2>
         <p class="hint">Diagnostic output from the tracker.</p>

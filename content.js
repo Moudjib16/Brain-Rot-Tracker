@@ -12,7 +12,8 @@
         return {
           platforms: { youtube: true, tiktok: true, instagram: true },
           historyRetentionDays: 365,
-          debugLogging: true
+          debugLogging: true,
+          resetHour: 0
         };
       }
     };

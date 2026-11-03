@@ -26,6 +26,7 @@ const STREAK_LIMIT = 365;
 let latestStats = null;
 let refreshTimer = null;
 let toastTimer = null;
+let currentResetHour = 0;
 let displayedDate = getTodayDateString();
 
 // -----------------------------------------------------------------------------
@@ -38,7 +39,14 @@ function pad2(value) {
 
 function getTodayDateString() {
   const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const hour = Math.min(23, Math.max(0, Math.floor(Number(currentResetHour) || 0)));
+  const base =
+    now.getHours() < hour
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+      : now;
+  return `${base.getFullYear()}-${pad2(base.getMonth() + 1)}-${pad2(
+    base.getDate()
+  )}`;
 }
 
 function parseLocalDate(dateString) {
@@ -484,9 +492,50 @@ document.getElementById("open-settings").addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
+function applyResetHourSetting(raw) {
+  const settings =
+    typeof BrainRotSettings !== "undefined"
+      ? BrainRotSettings.normalizeSettings(raw)
+      : { resetHour: 0 };
+
+  currentResetHour = settings.resetHour;
+  displayedDate = getTodayDateString();
+}
+
+function loadResetHourSetting(callback) {
+  try {
+    chrome.storage.local.get({ settings: null }, (data) => {
+      if (!chrome.runtime.lastError) {
+        applyResetHourSetting(data && data.settings);
+      }
+
+      if (callback) {
+        callback();
+      }
+    });
+  } catch (error) {
+    if (callback) {
+      callback();
+    }
+  }
+}
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes.stats) {
+  if (areaName !== "local") {
+    return;
+  }
+
+  if (changes.stats) {
     scheduleRefresh();
+  }
+
+  if (changes.settings) {
+    applyResetHourSetting(changes.settings.newValue);
+    updateDateLabel();
+
+    if (latestStats) {
+      renderStats(latestStats);
+    }
   }
 });
 
@@ -504,6 +553,8 @@ function checkDateRollover() {
   }
 }
 
-updateDateLabel();
-loadStats();
+loadResetHourSetting(() => {
+  updateDateLabel();
+  loadStats();
+});
 setInterval(checkDateRollover, 60000);

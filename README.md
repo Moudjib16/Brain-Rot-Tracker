@@ -108,6 +108,9 @@ no reload is needed.
 - **History retention** — keep 30, 90, 180, or 365 days of daily stats, or keep them
   forever. Choosing a shorter window deletes older days as soon as the setting is
   saved.
+- **Daily rollover** — choose the hour the tracking day starts (midnight by default,
+  or 3/4/5/6 AM or noon). Time before that hour counts toward the previous day.
+  Existing history is unchanged.
 - **Verbose console logging** — enables or silences the `console.debug` output the
   content script emits for each counted video. Warnings and errors are always shown.
 
@@ -116,7 +119,8 @@ no reload is needed.
   "settings": {
     "platforms": { "youtube": true, "tiktok": true, "instagram": true },
     "historyRetentionDays": 365,
-    "debugLogging": true
+    "debugLogging": true,
+    "resetHour": 0
   }
 }
 ```

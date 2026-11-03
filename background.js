@@ -34,11 +34,13 @@ if (typeof BrainRotSettings === "undefined") {
       }
 
       const retention = Number(source.historyRetentionDays);
+      const resetHour = Number(source.resetHour);
       return {
         platforms,
         historyRetentionDays:
           Number.isFinite(retention) && retention >= 0 ? Math.floor(retention) : 365,
-        debugLogging: source.debugLogging !== false
+        debugLogging: source.debugLogging !== false,
+        resetHour: Number.isFinite(resetHour) ? Math.min(23, Math.max(0, Math.floor(resetHour))) : 0
       };
     }
   };
@@ -51,7 +53,8 @@ const HISTORY_RETENTION_DAYS = 365;
 const MAX_SECONDS_PER_MESSAGE = 300;
 const MAX_SCROLLS_PER_MESSAGE = 50;
 const SITES = ["youtube", "tiktok", "instagram"];
-const MIDNIGHT_ALARM = "brt-midnight";
+const MIDNIGHT_ALARM = "brt-midnight"; // legacy name, cleared on load
+const ROLLOVER_ALARM = "brt-rollover";
 const BADGE_COLOR = "#ff4d4d";
 const SETTINGS_KEY = BrainRotSettings.SETTINGS_KEY;
 
@@ -63,9 +66,28 @@ function pad2(value) {
   return String(value).padStart(2, "0");
 }
 
-function getTodayDateString(date) {
+function toResetHour(value) {
+  const hour = Number(value);
+
+  if (!Number.isFinite(hour)) {
+    return 0;
+  }
+
+  return Math.min(23, Math.max(0, Math.floor(hour)));
+}
+
+function getTodayDateString(date, resetHour) {
   const now = date instanceof Date ? date : new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const hour = toResetHour(resetHour);
+
+  // The tracking day starts at the configured hour, not at midnight. Before
+  // that hour the "current" day is still the previous calendar date.
+  const base =
+    now.getHours() < hour
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+      : now;
+
+  return `${base.getFullYear()}-${pad2(base.getMonth() + 1)}-${pad2(base.getDate())}`;
 }
 
 function isValidDateString(value) {
@@ -261,7 +283,7 @@ async function refreshBadge(stats) {
     return;
   }
 
-  const today = getDay(stats, getTodayDateString());
+  const today = getDay(stats, getTodayDateString(undefined, currentResetHour));
   const text = today.scrolledCount > 0 ? formatCount(today.scrolledCount) : "";
   const title =
     today.scrolledCount === 0 && today.activeTimeSeconds === 0
@@ -326,7 +348,10 @@ async function readStoredStats() {
 
   const settings = BrainRotSettings.normalizeSettings(data[SETTINGS_KEY]);
   const retention = settings.historyRetentionDays;
+  const resetHour = toResetHour(settings.resetHour);
   lastRetentionDays = retention;
+  currentResetHour = resetHour;
+  const nowKey = getTodayDateString(undefined, resetHour);
 
   const hadLegacyValues = LEGACY_KEYS.some(
     (key) => data[key] !== null && data[key] !== undefined
@@ -340,8 +365,8 @@ async function readStoredStats() {
       lastResetDate: data.lastResetDate
     };
 
-  const stats = normalizeStats(rawStats, getTodayDateString(), retention);
-  const pruned = pruneHistory(stats, getTodayDateString(), retention);
+  const stats = normalizeStats(rawStats, nowKey, retention);
+  const pruned = pruneHistory(stats, nowKey, retention);
 
   if (hadLegacyValues) {
     await storageRemove(LEGACY_KEYS);
@@ -360,6 +385,7 @@ let writeQueue = Promise.resolve();
 // Retention from the most recent read; keeps withStats pruning in step with
 // the settings that were just loaded. Only mutated inside the serialized queue.
 let lastRetentionDays = HISTORY_RETENTION_DAYS;
+let currentResetHour = 0;
 
 function readSettings() {
   return storageGet({ [SETTINGS_KEY]: null }).then((data) =>
@@ -380,7 +406,7 @@ function withStats(mutator) {
   return enqueue(async () => {
     const stats = await readStoredStats();
     const result = await mutator(stats);
-    pruneHistory(stats, getTodayDateString(), lastRetentionDays);
+    pruneHistory(stats, getTodayDateString(undefined, currentResetHour), lastRetentionDays);
     await saveStats(stats);
     await refreshBadge(stats);
     return result === undefined ? null : result;
@@ -405,8 +431,9 @@ function toBoundedInt(value, max) {
   return Math.min(number, max);
 }
 
-function handleMessage(message) {
-  const today = getTodayDateString();
+async function handleMessage(message) {
+  const settings = await readSettings();
+  const today = getTodayDateString(undefined, toResetHour(settings.resetHour));
 
   switch (message.action) {
     case "INCREMENT_SCROLL": {
@@ -421,16 +448,14 @@ function handleMessage(message) {
 
       const site = validSite(message.site);
 
-      return readSettings().then((settings) => {
-        // A known platform that is switched off is ignored entirely, even for
-        // the grand total. Unknown sites keep the previous behavior.
-        if (site && settings.platforms[site] === false) {
-          return null;
-        }
+      // A known platform that is switched off is ignored entirely, even for
+      // the grand total. Unknown sites keep the previous behavior.
+      if (site && settings.platforms[site] === false) {
+        return null;
+      }
 
-        return withStats((stats) => {
-          applyActivity(stats, { date: today, site, scrolledCount: count });
-        });
+      return withStats((stats) => {
+        applyActivity(stats, { date: today, site, scrolledCount: count });
       });
     }
 
@@ -443,14 +468,12 @@ function handleMessage(message) {
 
       const site = validSite(message.site);
 
-      return readSettings().then((settings) => {
-        if (site && settings.platforms[site] === false) {
-          return null;
-        }
+      if (site && settings.platforms[site] === false) {
+        return null;
+      }
 
-        return withStats((stats) => {
-          applyActivity(stats, { date: today, site, activeTimeSeconds: seconds });
-        });
+      return withStats((stats) => {
+        applyActivity(stats, { date: today, site, activeTimeSeconds: seconds });
       });
     }
 
@@ -520,63 +543,82 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function runMaintenance() {
   return enqueue(async () => {
     const stats = await readStoredStats();
-    pruneHistory(stats, getTodayDateString(), lastRetentionDays);
+    pruneHistory(stats, getTodayDateString(undefined, currentResetHour), lastRetentionDays);
     await saveStats(stats);
     await refreshBadge(stats);
     return stats;
   });
 }
 
-// Re-prune as soon as the settings change so a shorter retention takes effect
-// right away instead of waiting for the next maintenance run.
+// Re-prune and reschedule the rollover as soon as the settings change so a
+// shorter retention or a new rollover hour takes effect right away instead of
+// waiting for the next maintenance run.
 if (chrome.storage && chrome.storage.onChanged) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local" && changes[SETTINGS_KEY]) {
+      scheduleRolloverAlarmFromSettings();
       runMaintenance().catch(() => undefined);
     }
   });
 }
 
-function scheduleMidnightAlarm() {
+function scheduleRolloverAlarm(resetHour) {
+  const hour = toResetHour(resetHour);
   const now = new Date();
-  const nextMidnight = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-    0,
-    0,
-    5
-  );
+  let when = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 5);
 
-  chrome.alarms.create(MIDNIGHT_ALARM, { when: nextMidnight.getTime() });
+  if (when.getTime() <= now.getTime()) {
+    when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hour, 0, 5);
+  }
+
+  try {
+    chrome.alarms.clear(ROLLOVER_ALARM, () => {
+      chrome.alarms.create(ROLLOVER_ALARM, { when: when.getTime() });
+    });
+  } catch (error) {
+    console.warn("[Brain Rot Tracker] failed to schedule the rollover alarm", error);
+  }
 }
 
-function ensureMidnightAlarm() {
-  chrome.alarms.get(MIDNIGHT_ALARM, (alarm) => {
+function scheduleRolloverAlarmFromSettings() {
+  readSettings()
+    .then((settings) => scheduleRolloverAlarm(settings.resetHour))
+    .catch(() => scheduleRolloverAlarm(0));
+}
+
+function ensureRolloverAlarm() {
+  chrome.alarms.get(ROLLOVER_ALARM, (alarm) => {
     if (!alarm) {
-      scheduleMidnightAlarm();
+      scheduleRolloverAlarmFromSettings();
     }
   });
+
+  // Clean up the alarm from versions that only rolled over at midnight.
+  try {
+    chrome.alarms.clear(MIDNIGHT_ALARM, () => undefined);
+  } catch (error) {
+    // Nothing to clean up.
+  }
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  ensureMidnightAlarm();
+  ensureRolloverAlarm();
   runMaintenance().catch(() => undefined);
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  ensureMidnightAlarm();
+  ensureRolloverAlarm();
   runMaintenance().catch(() => undefined);
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== MIDNIGHT_ALARM) {
+  if (alarm.name !== ROLLOVER_ALARM) {
     return;
   }
 
-  scheduleMidnightAlarm();
+  scheduleRolloverAlarmFromSettings();
   runMaintenance().catch(() => undefined);
 });
 
-ensureMidnightAlarm();
+ensureRolloverAlarm();
 runMaintenance().catch(() => undefined);

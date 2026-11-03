@@ -8,7 +8,8 @@
  *   {
  *     platforms: { youtube: true, tiktok: true, instagram: true },
  *     historyRetentionDays: 365,   // 0 keeps history forever
- *     debugLogging: true
+ *     debugLogging: true,
+ *     resetHour: 0                 // hour of day the tracking day starts
  *   }
  */
 (function (root) {
@@ -20,7 +21,8 @@
   const DEFAULT_SETTINGS = {
     platforms: { youtube: true, tiktok: true, instagram: true },
     historyRetentionDays: 365,
-    debugLogging: true
+    debugLogging: true,
+    resetHour: 0
   };
 
   function toNonNegativeInt(value, fallback) {
@@ -31,6 +33,16 @@
     }
 
     return Math.floor(number);
+  }
+
+  function toHourValue(value, fallback) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return fallback;
+    }
+
+    return Math.min(23, Math.max(0, Math.floor(number)));
   }
 
   function normalizeSettings(raw) {
@@ -56,7 +68,8 @@
       debugLogging:
         typeof source.debugLogging === "boolean"
           ? source.debugLogging
-          : DEFAULT_SETTINGS.debugLogging
+          : DEFAULT_SETTINGS.debugLogging,
+      resetHour: toHourValue(source.resetHour, DEFAULT_SETTINGS.resetHour)
     };
   }
 

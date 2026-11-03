@@ -7,6 +7,7 @@
   const statusEl = document.getElementById("save-status");
   const toggles = Array.from(document.querySelectorAll(".switch-input[data-site]"));
   const retentionSelect = document.getElementById("history-retention");
+  const resetHourSelect = document.getElementById("reset-hour");
   const debugToggle = document.getElementById("debug-logging");
 
   let statusTimer = null;
@@ -57,6 +58,27 @@
     return Math.floor(number);
   }
 
+  function toHourValue(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return BrainRotSettings.DEFAULT_SETTINGS.resetHour;
+    }
+
+    return Math.min(23, Math.max(0, Math.floor(number)));
+  }
+
+  function ensureOptionPresent(select, value) {
+    const exists = Array.from(select.options).some((option) => option.value === value);
+
+    if (!exists) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = `${String(value).padStart(2, "0")}:00`;
+      select.append(option);
+    }
+  }
+
   async function refreshControls() {
     const settings = await readSettings();
 
@@ -64,7 +86,9 @@
       toggle.checked = settings.platforms[toggle.dataset.site] !== false;
     }
 
+    ensureOptionPresent(resetHourSelect, String(settings.resetHour));
     retentionSelect.value = String(settings.historyRetentionDays);
+    resetHourSelect.value = String(settings.resetHour);
     debugToggle.checked = settings.debugLogging !== false;
   }
 
@@ -76,6 +100,7 @@
     }
 
     settings.historyRetentionDays = toRetentionValue(retentionSelect.value);
+    settings.resetHour = toHourValue(resetHourSelect.value);
     settings.debugLogging = debugToggle.checked;
 
     const saved = await writeSettings(settings);
@@ -97,6 +122,7 @@
   }
 
   retentionSelect.addEventListener("change", () => save("retention"));
+  resetHourSelect.addEventListener("change", () => save());
   debugToggle.addEventListener("change", () => save());
 
   // Keep controls in sync when settings change in another tab or window.
@@ -108,7 +134,9 @@
         toggle.checked = settings.platforms[toggle.dataset.site] !== false;
       }
 
+      ensureOptionPresent(resetHourSelect, String(settings.resetHour));
       retentionSelect.value = String(settings.historyRetentionDays);
+      resetHourSelect.value = String(settings.resetHour);
       debugToggle.checked = settings.debugLogging !== false;
     }
   });
