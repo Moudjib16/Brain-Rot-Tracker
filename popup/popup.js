@@ -1,20 +1,17 @@
-const DEFAULT_STATS = {
-  scrolledCount: 0,
-  activeTimeSeconds: 0,
-  lastResetDate: null
-};
-
 const scrolledCountEl = document.getElementById("scrolled-count");
 const activeTimeEl = document.getElementById("active-time");
 const resetButton = document.getElementById("reset-stats");
 const dateLabel = document.getElementById("date-label");
 
+let refreshTimer = null;
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
 function getTodayDateString() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 }
 
 function formatActiveTime(totalSeconds) {
@@ -22,56 +19,71 @@ function formatActiveTime(totalSeconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return [hours, minutes, secs].map((unit) => String(unit).padStart(2, "0")).join(":");
+  return [hours, minutes, secs].map(pad2).join(":");
+}
+
+function send(action) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ action }, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      if (!response || response.ok !== true) {
+        reject(new Error((response && response.error) || "Unknown extension error"));
+        return;
+      }
+
+      resolve(response.stats);
+    });
+  });
 }
 
 function renderStats(stats) {
-  scrolledCountEl.textContent = String(stats.scrolledCount ?? 0);
-  activeTimeEl.textContent = formatActiveTime(stats.activeTimeSeconds ?? 0);
-}
+  const day = (stats && stats.history && stats.history[getTodayDateString()]) || {
+    scrolledCount: 0,
+    activeTimeSeconds: 0
+  };
 
-async function getStats() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(DEFAULT_STATS, (data) => resolve(data));
-  });
-}
-
-async function resetStats() {
-  const today = getTodayDateString();
-  await new Promise((resolve) => {
-    chrome.storage.local.set(
-      { scrolledCount: 0, activeTimeSeconds: 0, lastResetDate: today },
-      () => resolve()
-    );
-  });
+  scrolledCountEl.textContent = String(day.scrolledCount);
+  activeTimeEl.textContent = formatActiveTime(day.activeTimeSeconds);
 }
 
 async function loadStats() {
-  const stats = await getStats();
-  const today = getTodayDateString();
+  try {
+    const stats = await send("GET_STATS");
+    renderStats(stats);
+  } catch (error) {
+    console.error("[Brain Rot Tracker] could not load stats", error);
+  }
+}
 
-  if (stats.lastResetDate !== today) {
-    await resetStats();
-    renderStats({ scrolledCount: 0, activeTimeSeconds: 0 });
-    return;
+function scheduleRefresh() {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
   }
 
-  renderStats(stats);
+  refreshTimer = setTimeout(loadStats, 100);
 }
 
 resetButton.addEventListener("click", async () => {
-  await resetStats();
-  renderStats({ scrolledCount: 0, activeTimeSeconds: 0 });
+  resetButton.disabled = true;
+
+  try {
+    const stats = await send("RESET_STATS");
+    renderStats(stats);
+  } catch (error) {
+    console.error("[Brain Rot Tracker] could not reset stats", error);
+  } finally {
+    resetButton.disabled = false;
+  }
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local") {
-    return;
+  if (areaName === "local" && changes.stats) {
+    scheduleRefresh();
   }
-
-  chrome.storage.local.get(DEFAULT_STATS, (stats) => {
-    renderStats(stats);
-  });
 });
 
 dateLabel.textContent = new Date().toLocaleDateString(undefined, {

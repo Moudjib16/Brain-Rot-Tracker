@@ -8,9 +8,11 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 
 - **Active time** — time accrued while a supported feed is visible in the active tab.
 - **Videos viewed** — a video is counted once after it has remained at least 60% visible for 700 ms.
-- **Daily stats** — the counters reset automatically on a new local calendar day.
+- **Daily stats** — each local calendar day is stored separately, so history is kept
+  instead of being overwritten by the daily rollover.
 
-The popup displays today's video count and active time, updates as storage changes, and includes a **Reset Stats** button.
+The popup displays today's video count and active time, updates as storage changes, and
+includes a **Reset Stats** button that clears only the current day.
 
 ## How it works
 
@@ -56,13 +58,29 @@ Reload the extension after changing its files, then refresh any already-open sup
 
 ## Storage
 
-The extension stores the following values locally in the browser:
+The extension stores all statistics locally under one `stats` key:
 
-```text
-scrolledCount
-activeTimeSeconds
-lastResetDate
+```json
+{
+  "stats": {
+    "version": 2,
+    "history": {
+      "2026-11-03": {
+        "scrolledCount": 42,
+        "activeTimeSeconds": 1830,
+        "sites": {
+          "youtube": { "scrolledCount": 30, "activeTimeSeconds": 1200 },
+          "tiktok": { "scrolledCount": 12, "activeTimeSeconds": 630 }
+        }
+      }
+    }
+  }
+}
 ```
+
+History is pruned after 365 days. Users upgrading from version 1 are migrated
+automatically: the old flat `scrolledCount` / `activeTimeSeconds` / `lastResetDate`
+values are folded into history under the date they belonged to.
 
 No account, server, or external analytics service is used.
 
@@ -70,7 +88,8 @@ No account, server, or external analytics service is used.
 
 - Platform page markup can change, especially on TikTok and Instagram. If counting stops, the site selectors in `content.js` may need updating.
 - The Firefox extension ID in `manifest.json` is a placeholder. Replace it before packaging or signing for Firefox Add-ons.
-- A daily reset is checked when the browser starts, the popup opens, or the extension receives a message. If the browser remains open overnight, the new-day reset occurs on the next such event.
+- A new day starts automatically when the date changes; the previous day remains in
+  history instead of being cleared.
 
 ## Development
 
