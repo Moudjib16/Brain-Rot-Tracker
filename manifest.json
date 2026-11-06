@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Brain Rot Tracker",
   "version": "1.1.0",
-  "description": "Tracks active screen time and unique videos scrolled on video-heavy platforms like YouTube Shorts, TikTok, and Instagram Reels.",
+  "description": "Tracks active time and unique videos scrolled on short-form feeds like YouTube Shorts, TikTok, and Instagram Reels.",
   "permissions": [
     "storage",
     "alarms",

@@ -11,7 +11,8 @@
  *     debugLogging: true,
  *     resetHour: 0,                // hour of day the tracking day starts
  *     badgeMode: "count",           // "count" | "time" | "none"
- *     reduceMotion: false          // disable extension animations
+ *     reduceMotion: false,         // disable extension animations
+ *     trackAllPlatformTime: false  // count time outside short-form feeds too
  *   }
  */
 (function (root) {
@@ -26,7 +27,8 @@
     debugLogging: true,
     resetHour: 0,
     badgeMode: "count",
-    reduceMotion: false
+    reduceMotion: false,
+    trackAllPlatformTime: false
   };
 
   const BADGE_MODES = ["count", "time", "none"];
@@ -84,7 +86,11 @@
       reduceMotion:
         typeof source.reduceMotion === "boolean"
           ? source.reduceMotion
-          : DEFAULT_SETTINGS.reduceMotion
+          : DEFAULT_SETTINGS.reduceMotion,
+      trackAllPlatformTime:
+        typeof source.trackAllPlatformTime === "boolean"
+          ? source.trackAllPlatformTime
+          : DEFAULT_SETTINGS.trackAllPlatformTime
     };
   }
 

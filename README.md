@@ -6,7 +6,7 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 
 ## What it tracks
 
-- **Active time** — time accrued while a supported feed is visible in the active tab.
+- **Active time** — time accrued while a short-form video is playing and visible in the active tab. Regular YouTube videos, search, and the homepage are ignored unless **Count all platform time** is enabled.
 - **Videos viewed** — a video is counted once after it has remained at least 60% visible for 700 ms.
 - **Daily stats** — each local calendar day is stored separately, so history is kept
   instead of being overwritten by the daily rollover.
@@ -106,6 +106,9 @@ no reload is needed.
   and Instagram Reels. Turning a platform off stops counting new videos and time on
   that site; your existing history is kept. The background service also rejects any
   stats messages for a disabled platform, so stale tabs cannot write either.
+- **Time tracking scope** — by default, active time only counts while a short-form
+  video is playing and visible. Turn on **Count all platform time** to count any page
+  on a supported site, including regular YouTube videos, search, and the homepage.
 - **History retention** — keep 30, 90, 180, or 365 days of daily stats, or keep them
   forever. Choosing a shorter window deletes older days as soon as the setting is
   saved.
@@ -123,6 +126,7 @@ no reload is needed.
 {
   "settings": {
     "platforms": { "youtube": true, "tiktok": true, "instagram": true },
+    "trackAllPlatformTime": false,
     "historyRetentionDays": 365,
     "debugLogging": true,
     "resetHour": 0,

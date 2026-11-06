@@ -41,7 +41,8 @@ if (typeof BrainRotSettings === "undefined") {
           Number.isFinite(retention) && retention >= 0 ? Math.floor(retention) : 365,
         debugLogging: source.debugLogging !== false,
         resetHour: Number.isFinite(resetHour) ? Math.min(23, Math.max(0, Math.floor(resetHour))) : 0,
-        badgeMode: ["count", "time", "none"].includes(source.badgeMode) ? source.badgeMode : "count"
+        badgeMode: ["count", "time", "none"].includes(source.badgeMode) ? source.badgeMode : "count",
+        trackAllPlatformTime: source.trackAllPlatformTime === true
       };
     }
   };

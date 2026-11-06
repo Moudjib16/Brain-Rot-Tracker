@@ -13,7 +13,8 @@
           platforms: { youtube: true, tiktok: true, instagram: true },
           historyRetentionDays: 365,
           debugLogging: true,
-          resetHour: 0
+          resetHour: 0,
+          trackAllPlatformTime: false
         };
       }
     };
@@ -75,8 +76,69 @@
     return document.visibilityState === "visible";
   }
 
+  function isShortFormContext() {
+    // YouTube is the only supported site that mixes short-form and long-form
+    // content. Time on regular videos, search, and the homepage should not be
+    // counted as brain rot, so restrict YouTube to Shorts pages.
+    return site !== "youtube" || /^\/shorts(\/|$)/.test(window.location.pathname);
+  }
+
+  function getVideoForElement(element) {
+    return element instanceof HTMLVideoElement ? element : element.querySelector("video");
+  }
+
+  function isVideoPlaying(video) {
+    // Paused videos, including a Short that the user stopped to read comments
+    // on, should not accrue active time.
+    return Boolean(video && !video.paused && !video.ended && video.readyState >= 2);
+  }
+
+  function hasPlayingShortFormVideo() {
+    // YouTube Shorts uses a dedicated active-reel marker and recycles its
+    // renderers, so trust that over intersection ratios for this site.
+    if (site === "youtube") {
+      const active = document.querySelector("ytd-reel-video-renderer[is-active]");
+
+      if (active && isVideoPlaying(getVideoForElement(active))) {
+        return true;
+      }
+    }
+
+    for (const element of visibleElements) {
+      if (!element.isConnected) {
+        visibleElements.delete(element);
+        continue;
+      }
+
+      if ((latestVisibility.get(element) ?? 0) < 0.6) {
+        visibleElements.delete(element);
+        continue;
+      }
+
+      if (isVideoPlaying(getVideoForElement(element))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function shouldTrackActiveTime() {
+    if (!isSiteEnabled(site)) {
+      return false;
+    }
+
+    // Opt-in mode: count time on any page of a supported site, including
+    // regular YouTube videos, search, and the homepage.
+    if (currentSettings.trackAllPlatformTime) {
+      return true;
+    }
+
+    return isShortFormContext() && hasPlayingShortFormVideo();
+  }
+
   function tick() {
-    if (isUserActive() && isSiteEnabled(site)) {
+    if (isUserActive() && shouldTrackActiveTime()) {
       unsyncedSeconds += 1;
 
       if (unsyncedSeconds >= SYNC_INTERVAL_SECONDS) {
@@ -153,6 +215,7 @@
   const MIN_VISIBLE_MS = 700;
   const IDENTITY_CACHE_LIMIT = 300;
   const latestVisibility = new WeakMap();
+  const visibleElements = new Set();
   const pendingTimers = new WeakMap();
   const countedIdentities = new Set();
 
@@ -249,10 +312,14 @@
         latestVisibility.set(element, ratio);
 
         if (ratio >= 0.6) {
+          visibleElements.add(element);
+
           if (!pendingTimers.has(element)) {
             pendingTimers.set(element, setTimeout(() => checkPendingCount(element), MIN_VISIBLE_MS));
           }
         } else {
+          visibleElements.delete(element);
+
           const timer = pendingTimers.get(element);
           if (timer) {
             clearTimeout(timer);

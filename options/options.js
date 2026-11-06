@@ -11,6 +11,7 @@
   const badgeModeSelect = document.getElementById("badge-mode");
   const debugToggle = document.getElementById("debug-logging");
   const reduceMotionToggle = document.getElementById("reduce-motion");
+  const trackAllPlatformTimeToggle = document.getElementById("track-all-platform-time");
 
   function applyMotionSetting(settings) {
     document.documentElement.classList.toggle(
@@ -107,6 +108,7 @@
     badgeModeSelect.value = settings.badgeMode;
     debugToggle.checked = settings.debugLogging !== false;
     reduceMotionToggle.checked = settings.reduceMotion === true;
+    trackAllPlatformTimeToggle.checked = settings.trackAllPlatformTime === true;
     applyMotionSetting(settings);
   }
 
@@ -122,6 +124,7 @@
     settings.badgeMode = toBadgeModeValue(badgeModeSelect.value);
     settings.debugLogging = debugToggle.checked;
     settings.reduceMotion = reduceMotionToggle.checked;
+    settings.trackAllPlatformTime = trackAllPlatformTimeToggle.checked;
 
     const saved = await writeSettings(settings);
     applyMotionSetting(settings);
@@ -147,6 +150,7 @@
   badgeModeSelect.addEventListener("change", () => save());
   debugToggle.addEventListener("change", () => save());
   reduceMotionToggle.addEventListener("change", () => save());
+  trackAllPlatformTimeToggle.addEventListener("change", () => save());
 
   // Keep controls in sync when settings change in another tab or window.
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -163,6 +167,7 @@
       badgeModeSelect.value = settings.badgeMode;
       debugToggle.checked = settings.debugLogging !== false;
       reduceMotionToggle.checked = settings.reduceMotion === true;
+      trackAllPlatformTimeToggle.checked = settings.trackAllPlatformTime === true;
       applyMotionSetting(settings);
     }
   });
