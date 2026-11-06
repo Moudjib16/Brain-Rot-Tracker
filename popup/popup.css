@@ -200,11 +200,29 @@ body {
 
 .chart-day {
   display: flex;
+  height: 100%;
+}
+
+.chart-day-button {
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  width: 100%;
   height: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.chart-day-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .chart-track {
@@ -226,7 +244,15 @@ body {
   background: var(--accent);
 }
 
-.chart-bar:hover {
+.chart-day-selected .chart-bar {
+  background: var(--accent);
+}
+
+.chart-day-selected .chart-day-button {
+  background: var(--accent-soft);
+}
+
+.chart-day-button:hover .chart-bar {
   filter: brightness(1.2);
 }
 
@@ -235,9 +261,61 @@ body {
   color: var(--text-muted);
 }
 
-.chart-day-today .chart-label {
+.chart-day-today .chart-label,
+.chart-day-selected .chart-label {
   font-weight: 700;
   color: var(--text);
+}
+
+.day-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.day-detail[hidden] {
+  display: none;
+}
+
+.day-detail-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.day-detail-stats {
+  display: flex;
+  gap: 22px;
+}
+
+.day-detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-detail-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+.day-detail-value-mono {
+  font-size: 16px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.day-detail-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
 }
 
 .streak {

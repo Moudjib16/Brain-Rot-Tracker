@@ -45,6 +45,19 @@
           id="week-chart"
           aria-label="Videos per day over the last 7 days"
         ></ol>
+        <div class="day-detail" id="day-detail" aria-live="polite" hidden>
+          <span class="day-detail-date" id="day-detail-date"></span>
+          <div class="day-detail-stats">
+            <span class="day-detail-stat">
+              <span class="day-detail-value" id="day-detail-count">0</span>
+              <span class="day-detail-label">videos</span>
+            </span>
+            <span class="day-detail-stat">
+              <span class="day-detail-value day-detail-value-mono" id="day-detail-time">00:00:00</span>
+              <span class="day-detail-label">active time</span>
+            </span>
+          </div>
+        </div>
         <p class="streak" id="streak" hidden></p>
       </section>
 

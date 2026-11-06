@@ -6,6 +6,10 @@ const breakdownEl = document.getElementById("breakdown");
 const siteListEl = document.getElementById("site-list");
 const weekChartEl = document.getElementById("week-chart");
 const weekSummaryEl = document.getElementById("week-summary");
+const dayDetailEl = document.getElementById("day-detail");
+const dayDetailDateEl = document.getElementById("day-detail-date");
+const dayDetailCountEl = document.getElementById("day-detail-count");
+const dayDetailTimeEl = document.getElementById("day-detail-time");
 const streakEl = document.getElementById("streak");
 const toastEl = document.getElementById("toast");
 const toastMessageEl = document.getElementById("toast-message");
@@ -28,6 +32,7 @@ let refreshTimer = null;
 let toastTimer = null;
 let currentResetHour = 0;
 let displayedDate = getTodayDateString();
+let selectedDate = null;
 
 // -----------------------------------------------------------------------------
 // Dates and formatting
@@ -252,10 +257,26 @@ function renderWeekChart(stats, dates) {
 
     const item = document.createElement("li");
     item.className = "chart-day";
+    item.dataset.date = date;
 
     if (date === today) {
       item.classList.add("chart-day-today");
     }
+
+    if (date === selectedDate) {
+      item.classList.add("chart-day-selected");
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chart-day-button";
+    button.title = description;
+    button.setAttribute("aria-pressed", date === selectedDate ? "true" : "false");
+    button.setAttribute(
+      "aria-label",
+      `${description}. ${date === selectedDate ? "Hide details." : "Show details."}`
+    );
+    button.addEventListener("click", () => toggleSelectedDate(date, stats));
 
     const track = document.createElement("div");
     track.className = "chart-track";
@@ -263,16 +284,15 @@ function renderWeekChart(stats, dates) {
     const bar = document.createElement("div");
     bar.className = "chart-bar";
     bar.style.setProperty("--ratio", String(day.scrolledCount / maxCount));
-    bar.title = description;
 
     const label = document.createElement("span");
     label.className = "chart-label";
     label.textContent = formatWeekday(date);
     label.setAttribute("aria-hidden", "true");
 
-    item.setAttribute("aria-label", description);
     track.append(bar);
-    item.append(track, label);
+    button.append(track, label);
+    item.append(button);
     weekChartEl.append(item);
   });
 
@@ -280,6 +300,38 @@ function renderWeekChart(stats, dates) {
   weekSummaryEl.textContent = `${total.scrolledCount} videos · ${formatCompactDuration(
     total.activeTimeSeconds
   )}`;
+}
+
+function toggleSelectedDate(date, stats) {
+  selectedDate = selectedDate === date ? null : date;
+
+  renderWeekChart(stats, recentDates(WEEK_LENGTH));
+  renderDayDetail(stats);
+
+  const button = weekChartEl.querySelector(
+    `.chart-day[data-date="${date}"] .chart-day-button`
+  );
+
+  if (button) {
+    button.focus();
+  }
+}
+
+function renderDayDetail(stats) {
+  if (!selectedDate) {
+    dayDetailEl.hidden = true;
+    return;
+  }
+
+  const day = getDay(stats, selectedDate);
+  const isToday = selectedDate === getTodayDateString();
+
+  dayDetailDateEl.textContent = `${formatFullDate(selectedDate)}${
+    isToday ? " · today" : ""
+  }`;
+  dayDetailCountEl.textContent = String(day.scrolledCount);
+  dayDetailTimeEl.textContent = formatActiveTime(day.activeTimeSeconds);
+  dayDetailEl.hidden = false;
 }
 
 function renderBreakdown(stats, dates) {
@@ -319,10 +371,15 @@ function renderStats(stats) {
   const today = getDay(stats, getTodayDateString());
   const dates = recentDates(WEEK_LENGTH);
 
+  if (selectedDate && !dates.includes(selectedDate)) {
+    selectedDate = null;
+  }
+
   scrolledCountEl.textContent = String(today.scrolledCount);
   activeTimeEl.textContent = formatActiveTime(today.activeTimeSeconds);
 
   renderWeekChart(stats, dates);
+  renderDayDetail(stats);
   renderBreakdown(stats, dates);
 
   const streak = currentStreak(stats);

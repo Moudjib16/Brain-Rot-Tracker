@@ -15,8 +15,9 @@ It supports YouTube Shorts, TikTok, and Instagram Reels.
 
 The popup shows today's video count and active time, a seven-day chart, your current
 streak, a per-platform breakdown, CSV/JSON export buttons, and a **Reset today** button
-with an eight-second undo. It follows the operating system's light or dark theme. The
-toolbar badge shows today's video count.
+with an eight-second undo. Clicking a day in the chart shows that day's total videos
+and active time. It follows the operating system's light or dark theme. The toolbar
+badge shows today's video count.
 
 ## How it works
 
